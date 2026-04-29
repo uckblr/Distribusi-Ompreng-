@@ -217,7 +217,7 @@ body {
     transition: 0.2s;
 }
 
-.smallbtn:active { transform: scale(0.9); }
+.smallbtn:active { transform: scale(100); }
 
 .btn-primary-v2 {
     width: 100%;
@@ -291,7 +291,7 @@ input:focus { border-color: var(--primary); background: white; }
 #sisaReady {
     font-size: 24px; /* Ukuran lebih besar dari sisaTarget */
     font-weight: 900;
-    color: #ef4444; /* Tambahkan ini agar defaultnya merah */
+    color: #ef4444; /* Agar defaultnya merah */
     display: block;
     margin: 5px 0;
     line-height: 1;
@@ -412,3 +412,24 @@ input:focus { border-color: var(--primary); background: white; }
 
 @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 100px; opacity: 1;} }
 @keyframes fadeout { from {bottom: 100px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+
+/* Efek Tekan Universal untuk semua tombol kecil */
+.smallbtn {
+    transition: transform 0.1s ease !important; /* Kecepatan animasi */
+    -webkit-tap-highlight-color: transparent;   /* Hapus kotak biru bawaan HP */
+    outline: none;
+}
+
+/* Saat jari menyentuh tombol */
+.smallbtn:active {
+    transform: scale(0.8) !important; /* Menciut 20% agar terasa 'mendul' */
+    filter: brightness(0.9);           /* Sedikit menggelap */
+}
+
+/* Efek tekan universal */
+.tekan {
+    transform: scale(0.92) !important; /* Menciut sedikit*/
+    transition: transform 0.1s ease !important;
+    filter: brightness(0.85) !important;
+}
+
