@@ -296,5 +296,34 @@ function confirmArchive() {
     });
 }
 
+document.addEventListener("touchstart", function() {}, true);
+
+document.addEventListener('touchstart', function(e) {
+    // Jika yang disentuh adalah tombol (smallbtn)
+    if (e.target.closest('.smallbtn')) {
+        e.target.closest('.smallbtn').classList.add('tekan');
+    }
+}, {passive: true});
+
+/* Efek Tekan untuk SEMUA Tombol */
+document.addEventListener('touchstart', function(e) {
+    // Cari apakah yang ditekan adalah button, atau punya class yang mengandung kata 'btn'
+    let el = e.target.closest('button, .smallbtn, .btn-primary-v2, .btn-reset, .btn-archive, .nav-item');
+    
+    if (el) {
+        el.classList.add('tekan');
+    }
+}, {passive: true});
+
+document.addEventListener('touchend', function(e) {
+    let el = e.target.closest('button, .smallbtn, .btn-primary-v2, .btn-reset, .btn-archive, .nav-item');
+    
+    if (el) {
+        setTimeout(() => {
+            el.classList.remove('tekan');
+        }, 100);
+    }
+}, {passive: true});
+
 // Start
 update();
