@@ -30,7 +30,7 @@ function showPage(pId, el) {
 }
 
 /* =========================================
-   CORE LOGIC (UPDATE DASHBOARD)
+   CORE LOGIC (UPDATE DASHBOARD) - FIXED VERSION
    ========================================= */
 function update() {
     const readyVal = Math.max(0, parseInt(document.getElementById("readyInput")?.value || 0));
@@ -44,40 +44,45 @@ function update() {
     let targetTotal = aktif.reduce((sum, d) => sum + d.total, 0);
     let kirimTotal = done.reduce((sum, d) => sum + d.total, 0);
 
-    // Hitung Total Porsi
+    // 1. Hitung Total Porsi Riil
     let pkTot = aktif.reduce((sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s), 0);
     let pkDone = done.reduce((sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s), 0);
     let pbTot = aktif.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
     let pbDone = done.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
 
-    // LOGIKA DERET SISA (+3+2+1)
-    const getDeretSisa = (tipe) => {
-        let listSisa = pending
+    let sisaPK = pkTot - pkDone;
+    let sisaPB = pbTot - pbDone;
+
+    // 2. LOGIKA BARU: Ambil Total Ikat saja (Tanpa menyentuh eceran)
+    const getIkatHanya = (list, tipe) => {
+        return list.reduce((sum, d) => sum + (parseInt(tipe === 'PK' ? d.pk_val.i : d.pb_val.i) || 0), 0);
+    };
+
+    // 3. LOGIKA DERET ECERAN (Tetap seperti mau kamu)
+    const getDeretSisa = (list, tipe) => {
+        let listSisa = list
             .map(d => parseInt(tipe === 'PK' ? d.pk_val.s : d.pb_val.s) || 0)
             .filter(s => s > 0);
         return listSisa.length > 0 ? " +" + listSisa.join("+") : "";
     };
 
-    let sisaPK = pkTot - pkDone;
-    let sisaPB = pbTot - pbDone;
-
     setTxt("targetView", targetTotal);
     setTxt("terdistribusiView", kirimTotal);
     setTxt("sisaTarget", Math.max(0, targetTotal - kirimTotal));
 
-    // Update PK View
+    // Update PK View - Sekarang Ikat dan Eceran dipisah secara logic
     setTxt("totalPKView", pkTot); 
     setTxt("pkDoneView", pkDone);
     setTxt("pkSisaView", sisaPK); 
-    setTxt("pkDetailIkat", `${Math.floor(sisaPK / 5)} iket${getDeretSisa('PK')}`);
+    setTxt("pkDetailIkat", `${getIkatHanya(pending, 'PK')} iket${getDeretSisa(pending, 'PK')}`);
 
     // Update PB View
     setTxt("totalPBView", pbTot); 
     setTxt("pbDoneView", pbDone);
     setTxt("pbSisaView", sisaPB); 
-    setTxt("pbDetailIkat", `${Math.floor(sisaPB / 5)} iket${getDeretSisa('PB')}`);
+    setTxt("pbDetailIkat", `${getIkatHanya(pending, 'PB')} iket${getDeretSisa(pending, 'PB')}`);
 
-    // Progress Bar & Kurang Porsi
+    // --- Sisa kode (Progress Bar & LocalStorage) tetap sama ---
     let pKirim = targetTotal > 0 ? (kirimTotal / targetTotal) * 100 : 0;
     let pSiap = targetTotal > 0 ? (readyVal / targetTotal) * 100 : 0;
     if (document.getElementById("progressBarDone")) document.getElementById("progressBarDone").style.width = pKirim + "%";
@@ -98,6 +103,7 @@ function update() {
     localStorage.setItem("ultra_v10_hist", JSON.stringify(historyData));
     render(); 
 }
+
 
 /* =========================================
    UI RENDER (LIST & MULTI-MOBIL)
