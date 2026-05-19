@@ -433,3 +433,43 @@ input:focus { border-color: var(--primary); background: white; }
     filter: brightness(0.85) !important;
 }
 
+/* Container pembungkus utama */
+.category-container {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+/* Kotak pilihan kiri & kanan (Bagi rata 50-50) */
+.category-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background-color: #f8fafc; /* Warna abu-abu lembut mirip input */
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;       /* Kelengkungan disamakan dengan input lain */
+    padding: 12px 8px;         /* Tinggi tombol yang pas untuk jari di HP */
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Sedikit efek visual saat radio button aktif (opsional namun mempercantik UI) */
+.category-box:has(input:checked) {
+    background-color: #eff6ff; /* Berubah agak biru lembut saat dipilih */
+    border-color: #3b82f6;     /* Garis tepi biru mengikuti warna tombol simpan */
+    color: #1d4ed8;
+}
+
+/* Ukuran radio button bawaan di dalam kotak */
+.category-box input[type="radio"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    accent-color: #3b82f6; /* Warna dot radio disesuaikan tema biru */
+}
