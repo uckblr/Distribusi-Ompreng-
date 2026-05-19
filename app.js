@@ -217,15 +217,58 @@ function tambah() {
     let pki = document.getElementById("pk_i").value, pks = document.getElementById("pk_s").value;
     let pbi = document.getElementById("pb_i").value, pbs = document.getElementById("pb_s").value;
     
+    // Ambil input tambahan untuk Tendik
+    let tendiki = document.getElementById("tendik_i").value;
+    
+    // Ambil mode input yang sedang aktif (ikat atau porsi)
+    let mode = document.querySelector('input[name="inputMode"]:checked').value;
+    
+    let pkUtama = parseInt(pki) || 0;
+    let pbUtama = parseInt(pbi) || 0;
+    let tendikUtama = parseInt(tendiki) || 0;
+    
+    let pkTotalEceran = parseInt(pks) || 0;
+    let pbTotalEceran = parseInt(pbs) || 0;
+
+    let pkHitung, pbHitung;
+
+    if (mode === "ikat") {
+        // JIKA MODE IKAT: Tendik tidak ada, gunakan rumus asli bawaan Anda
+        pkHitung = (pkUtama * 5) + pkTotalEceran;
+        pbHitung = (pbUtama * 5) + pbTotalEceran;
+    } else {
+        // JIKA MODE PORSI LANGSUNG: Angka utama dihitung murni porsi langsung
+        pkHitung = pkUtama; 
+        
+        // Gabungkan nilai Tendik langsung ke total PB porsi mentah sebelum dipecah
+        pbHitung = pbUtama + tendikUtama;
+
+        // Pecah otomatis nilai PK ke format basis 5 (Ikat + Sisa)
+        pkTotalEceran = pkUtama % 5;
+        pkUtama = Math.floor(pkUtama / 5);
+
+        // Pecah otomatis nilai PB (yang sudah digabung Tendik) ke format basis 5 (Ikat + Sisa)
+        pbTotalEceran = pbHitung % 5;
+        pbUtama = Math.floor(pbHitung / 5);
+    }
+    
     data.unshift({ 
         nama, mobil, status: "pending", 
-        total: hitung(pki,pks)+hitung(pbi,pbs),
-        pk_val: {i:pki||0, s:pks||0}, pb_val: {i:pbi||0, s:pbs||0} 
+        total: pkHitung + pbHitung,
+        pk_val: { i: pkUtama, s: pkTotalEceran }, 
+        pb_val: { i: pbUtama, s: pbTotalEceran } 
     });
     
-    ["nama", "pk_i", "pk_s", "pb_i", "pb_s"].forEach(id => document.getElementById(id).value = "");
+    // Bersihkan semua form input termasuk input tendik setelah tombol simpan diklik
+    ["nama", "pk_i", "pk_s", "pb_i", "pb_s", "tendik_i"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+    });
+    
     update();
 }
+
+
 
 function naikkanPrioritas(idx) {
     if (idx > 0) {
@@ -340,6 +383,42 @@ document.addEventListener('touchend', function(e) {
         }, 100);
     }
 }, {passive: true});
+function togglePlaceholder() {
+    let mode = document.querySelector('input[name="inputMode"]:checked').value;
+    const pkInput = document.getElementById("pk_i");
+    const pbInput = document.getElementById("pb_i");
+    const tendikInput = document.getElementById("tendik_i");
+    const rowTendik = document.getElementById("row_tendik");
+    
+    // Ambil semua elemen input eceran dan tanda plus-nya
+    const eceranElements = document.querySelectorAll('#pk_s, #pb_s, #tendik_s, .plus-sign');
+    
+    if (mode === "porsi") {
+        if(pkInput) pkInput.placeholder = "PK (Porsi)";
+        if(pbInput) pbInput.placeholder = "PB (Porsi)";
+        if(tendikInput) tendikInput.placeholder = "Tendik (Porsi)";
+        
+        // Sembunyikan kolom eceran S dan tanda "+"
+        eceranElements.forEach(el => el.style.display = 'none');
+        
+        // MUNCULKAN baris Tendik saat mode porsi langsung
+        if (rowTendik) rowTendik.style.display = 'flex';
+    } else {
+        if(pkInput) pkInput.placeholder = "PK (Ikat)";
+        if(pbInput) pbInput.placeholder = "PB (Ikat)";
+        
+        // Munculkan kembali kolom eceran S dan tanda "+" untuk PK & PB
+        eceranElements.forEach(el => el.style.display = 'inline-block');
+        
+        // SEMBUNYIKAN baris Tendik secara total saat mode ikat
+        if (rowTendik) rowTendik.style.display = 'none';
+    }
+}
+
+// Jalankan fungsi ini sekali di paling bawah script agar saat pertama kali dimuat kondisinya langsung menyesuaikan
+togglePlaceholder();
+
+
 
 // Start
 update();
