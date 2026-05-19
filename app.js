@@ -32,6 +32,9 @@ function showPage(pId, el) {
 /* =========================================
    CORE LOGIC (UPDATE DASHBOARD) - FIXED VERSION
    ========================================= */
+/* =========================================
+   CORE LOGIC (UPDATE DASHBOARD) - FIXED VERSION
+   ========================================= */
 function update() {
     const readyVal = Math.max(0, parseInt(document.getElementById("readyInput")?.value || 0));
     
@@ -53,12 +56,12 @@ function update() {
     let sisaPK = pkTot - pkDone;
     let sisaPB = pbTot - pbDone;
 
-    // 2. LOGIKA BARU: Ambil Total Ikat saja (Tanpa menyentuh eceran)
-    const getIkatHanya = (list, tipe) => {
-        return list.reduce((sum, d) => sum + (parseInt(tipe === 'PK' ? d.pk_val.i : d.pb_val.i) || 0), 0);
+    // 2. LOGIKA BARU: Hitung total eceran dari data pending untuk dikurangi dari sisa total
+    const getSumEceran = (list, tipe) => {
+        return list.reduce((sum, d) => sum + (parseInt(tipe === 'PK' ? d.pk_val.s : d.pb_val.s) || 0), 0);
     };
 
-    // 3. LOGIKA DERET ECERAN (Tetap seperti mau kamu)
+    // 3. LOGIKA DERET ECERAN (Format string eceran saja tanpa kata 'iket')
     const getDeretSisa = (list, tipe) => {
         let listSisa = list
             .map(d => parseInt(tipe === 'PK' ? d.pk_val.s : d.pb_val.s) || 0)
@@ -70,17 +73,23 @@ function update() {
     setTxt("terdistribusiView", kirimTotal);
     setTxt("sisaTarget", Math.max(0, targetTotal - kirimTotal));
 
-    // Update PK View - Sekarang Ikat dan Eceran dipisah secara logic
+    // Perhitungan Angka Bersih (Sisa - Total Eceran Pending)
+    let pkEceranTotal = getSumEceran(pending, 'PK');
+    let pbEceranTotal = getSumEceran(pending, 'PB');
+    let pkBersih = sisaPK - pkEceranTotal;
+    let pbBersih = sisaPB - pbEceranTotal;
+
+    // Update PK View - Angka Utama Tetap, di bawahnya angka bersih + deret eceran
     setTxt("totalPKView", pkTot); 
     setTxt("pkDoneView", pkDone);
     setTxt("pkSisaView", sisaPK); 
-    setTxt("pkDetailIkat", `${getIkatHanya(pending, 'PK')} iket${getDeretSisa(pending, 'PK')}`);
+    setTxt("pkDetailIkat", `${pkBersih}${getDeretSisa(pending, 'PK')}`);
 
-    // Update PB View
+    // Update PB View - Angka Utama Tetap, di bawahnya angka bersih + deret eceran
     setTxt("totalPBView", pbTot); 
     setTxt("pbDoneView", pbDone);
     setTxt("pbSisaView", sisaPB); 
-    setTxt("pbDetailIkat", `${getIkatHanya(pending, 'PB')} iket${getDeretSisa(pending, 'PB')}`);
+    setTxt("pbDetailIkat", `${pbBersih}${getDeretSisa(pending, 'PB')}`);
 
     // --- Sisa kode (Progress Bar & LocalStorage) tetap sama ---
     let pKirim = targetTotal > 0 ? (kirimTotal / targetTotal) * 100 : 0;
@@ -95,7 +104,7 @@ function update() {
     let kurang = (targetTotal - kirimTotal) - readyVal;
     const elKurang = document.getElementById("sisaReady");
     if (elKurang) {
-        elKurang.innerText = kurang;
+        elKurang.innerText = kurang.toString();
         elKurang.style.color = kurang > 0 ? "#ef4444" : "#22c55e";
     }
 
@@ -103,6 +112,7 @@ function update() {
     localStorage.setItem("ultra_v10_hist", JSON.stringify(historyData));
     render(); 
 }
+
 
 
 /* =========================================
