@@ -1,159 +1,440 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>UCKBLR</title>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-</head>
-<body>
-  <nav class="navbar">
-    <div class="nav-item active" onclick="showPage('dashboard', this)">
-      <span class="icon">📊</span><span class="text">Dasbor</span>
-    </div>
-    <div class="nav-item" onclick="showPage('data-sekolah', this)">
-      <span class="icon">🏫</span><span class="text">Sekolah</span>
-    </div>
-    <div class="nav-item" onclick="showPage('historis', this)">
-      <span class="icon">📜</span><span class="text">Histori</span>
-    </div>
-  </nav>
-
-  <div class="container">
-    <section id="dashboard" class="page active">
-      <div class="card">
-        <div class="stat-row">
-          <div class="stat-item"><span class="label">Total Penerima</span><span id="targetView" class="value">0</span></div>
-          <div class="divider-v"></div>
-          <div class="stat-item"><span class="label">Terdistribusi</span><span id="terdistribusiView" class="value" style="color:var(--success)">0</span></div>
-        </div>
-        <div style="text-align: center; margin-top: 12px;">
-          <span id="sekolahDoneCount" style="font-size: 11px; font-weight: 800; color: #475569; background: #f1f5f9; padding: 4px 12px; border-radius: 20px; border: 1px solid #e2e8f0; text-transform: uppercase;">0 sekolah selesai</span>
-        </div>
-        <div class="progress-container" style="margin-top: 15px;">
-          <div id="progressBarDone" class="progress-done"></div>
-          <div id="progressBarReady" class="progress-ready"></div>
-        </div>
-        <div class="progress-legend">
-            <div class="legend-item"><span class="dot" style="background:var(--success)"></span> Terdistribusi</div>
-            <div class="legend-item"><span class="dot" style="background:var(--primary)"></span> Tersedia</div>
-            <div id="progressPercent">0%</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="stat-row">
-          <div class="stat-item">
-            <span class="label">PK (Kirim/Total)</span>
-            <div style="display: flex; align-items: baseline; justify-content: center; gap: 4px;">
-              <span id="pkDoneView" class="value" style="color:var(--success); font-size: 18px;">0</span>
-              <span style="color: #cbd5e1; font-weight: 800;">/</span>
-              <span id="totalPKView" class="value" style="color:#ef4444; font-size: 18px;">0</span>
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <title>UCKBLR</title>
+        <link rel="stylesheet" href="style.css" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+            rel="stylesheet"
+        />
+    </head>
+    <body>
+        <nav class="navbar">
+            <div class="nav-item active" onclick="showPage('dashboard', this)">
+                <span class="icon">📊</span><span class="text">Dasbor</span>
             </div>
-            <div style="margin-top: 10px; background: #fef2f2; padding: 8px 4px; border-radius: 6px; border: 1px solid #fee2e2;">
-              <div style="font-size: 9px; font-weight: 800; color: #b91c1c;">SISA PK</div>
-              <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                <span id="pkSisaView" style="font-size: 18px; font-weight: 900; color: #ef4444;">0</span>
-                <span id="pkDetailIkat" style="font-size: 10px; font-weight: 700; color: #b91c1c;">0 iket + 0</span>
-              </div>
+            <div class="nav-item" onclick="showPage('data-sekolah', this)">
+                <span class="icon">🏫</span><span class="text">Sekolah</span>
             </div>
-          </div>
-          <div class="divider-v"></div>
-          <div class="stat-item">
-            <span class="label">PB (Kirim/Total)</span>
-            <div style="display: flex; align-items: baseline; justify-content: center; gap: 4px;">
-              <span id="pbDoneView" class="value" style="color:var(--success); font-size: 18px;">0</span>
-              <span style="color: #cbd5e1; font-weight: 800;">/</span>
-              <span id="totalPBView" class="value" style="color:#0284c7; font-size: 18px;">0</span>
+            <div class="nav-item" onclick="showPage('historis', this)">
+                <span class="icon">📜</span><span class="text">Histori</span>
             </div>
-            <div style="margin-top: 10px; background: #f0f9ff; padding: 8px 4px; border-radius: 6px; border: 1px solid #e0f2fe;">
-              <div style="font-size: 9px; font-weight: 800; color: #0369a1;">SISA PB</div>
-              <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                <span id="pbSisaView" style="font-size: 18px; font-weight: 900; color: #0284c7;">0</span>
-                <span id="pbDetailIkat" style="font-size: 10px; font-weight: 700; color: #0369a1;">0 iket + 0</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        </nav>
 
-      <div class="card">
-        <div class="stat-row">
-          <div class="stat-item"><span class="label">Belum Terdistribusi</span><span id="sisaTarget" class="value-dark">0</span></div>
-          <div class="divider-v"></div>
-          <div class="stat-item">
-            <span class="label">Tersedia</span>
-            <input type="number" id="readyInput" oninput="update()" placeholder="0">
-          </div>
-        </div>
-        <div class="divider-h"></div>
-        <div style="text-align:center"><span class="label">Kurang</span><br><span id="sisaReady" class="value-red" style="font-size:32px">0</span></div>
-      </div>
+        <div class="container">
+            <section id="dashboard" class="page active">
+                <div class="card">
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <span class="label">Total Penerima</span
+                            ><span id="targetView" class="value">0</span>
+                        </div>
+                        <div class="divider-v"></div>
+                        <div class="stat-item">
+                            <span class="label">Terdistribusi</span
+                            ><span
+                                id="terdistribusiView"
+                                class="value"
+                                style="color: var(--success)"
+                                >0</span
+                            >
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 12px">
+                        <span
+                            id="sekolahDoneCount"
+                            style="
+                                font-size: 11px;
+                                font-weight: 800;
+                                color: #475569;
+                                background: #f1f5f9;
+                                padding: 4px 12px;
+                                border-radius: 20px;
+                                border: 1px solid #e2e8f0;
+                                text-transform: uppercase;
+                            "
+                            >0 sekolah selesai</span
+                        >
+                    </div>
+                    <div class="progress-container" style="margin-top: 15px">
+                        <div id="progressBarDone" class="progress-done"></div>
+                        <div id="progressBarReady" class="progress-ready"></div>
+                    </div>
+                    <div class="progress-legend">
+                        <div class="legend-item">
+                            <span
+                                class="dot"
+                                style="background: var(--success)"
+                            ></span>
+                            Terdistribusi
+                        </div>
+                        <div class="legend-item">
+                            <span
+                                class="dot"
+                                style="background: var(--primary)"
+                            ></span>
+                            Tersedia
+                        </div>
+                        <div id="progressPercent">0%</div>
+                    </div>
+                </div>
 
-      <div class="btn-group-row">
-        <button class="btn-reset" onclick="confirmReset()">RESET</button>
-        <button class="btn-archive" onclick="confirmArchive()">ARSIP</button>
-      </div>
-    </section>
+                <div class="card">
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <span class="label">PK (Kirim/Total)</span>
+                            <div
+                                style="
+                                    display: flex;
+                                    align-items: baseline;
+                                    justify-content: center;
+                                    gap: 4px;
+                                "
+                            >
+                                <span
+                                    id="pkDoneView"
+                                    class="value"
+                                    style="
+                                        color: var(--success);
+                                        font-size: 18px;
+                                    "
+                                    >0</span
+                                >
+                                <span style="color: #cbd5e1; font-weight: 800"
+                                    >/</span
+                                >
+                                <span
+                                    id="totalPKView"
+                                    class="value"
+                                    style="color: #ef4444; font-size: 18px"
+                                    >0</span
+                                >
+                            </div>
+                            <div
+                                style="
+                                    margin-top: 10px;
+                                    background: #fef2f2;
+                                    padding: 8px 4px;
+                                    border-radius: 6px;
+                                    border: 1px solid #fee2e2;
+                                "
+                            >
+                                <div
+                                    style="
+                                        font-size: 9px;
+                                        font-weight: 800;
+                                        color: #b91c1c;
+                                    "
+                                >
+                                    SISA PK
+                                </div>
+                                <div
+                                    style="
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        gap: 2px;
+                                    "
+                                >
+                                    <span
+                                        id="pkSisaView"
+                                        style="
+                                            font-size: 18px;
+                                            font-weight: 900;
+                                            color: #ef4444;
+                                        "
+                                        >0</span
+                                    >
+                                    <span
+                                        id="pkDetailIkat"
+                                        style="
+                                            font-size: 10px;
+                                            font-weight: 700;
+                                            color: #b91c1c;
+                                        "
+                                        >0 iket + 0</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                        <div class="divider-v"></div>
+                        <div class="stat-item">
+                            <span class="label">PB (Kirim/Total)</span>
+                            <div
+                                style="
+                                    display: flex;
+                                    align-items: baseline;
+                                    justify-content: center;
+                                    gap: 4px;
+                                "
+                            >
+                                <span
+                                    id="pbDoneView"
+                                    class="value"
+                                    style="
+                                        color: var(--success);
+                                        font-size: 18px;
+                                    "
+                                    >0</span
+                                >
+                                <span style="color: #cbd5e1; font-weight: 800"
+                                    >/</span
+                                >
+                                <span
+                                    id="totalPBView"
+                                    class="value"
+                                    style="color: #0284c7; font-size: 18px"
+                                    >0</span
+                                >
+                            </div>
+                            <div
+                                style="
+                                    margin-top: 10px;
+                                    background: #f0f9ff;
+                                    padding: 8px 4px;
+                                    border-radius: 6px;
+                                    border: 1px solid #e0f2fe;
+                                "
+                            >
+                                <div
+                                    style="
+                                        font-size: 9px;
+                                        font-weight: 800;
+                                        color: #0369a1;
+                                    "
+                                >
+                                    SISA PB
+                                </div>
+                                <div
+                                    style="
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        gap: 2px;
+                                    "
+                                >
+                                    <span
+                                        id="pbSisaView"
+                                        style="
+                                            font-size: 18px;
+                                            font-weight: 900;
+                                            color: #0284c7;
+                                        "
+                                        >0</span
+                                    >
+                                    <span
+                                        id="pbDetailIkat"
+                                        style="
+                                            font-size: 10px;
+                                            font-weight: 700;
+                                            color: #0369a1;
+                                        "
+                                        >0 iket + 0</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    <section id="data-sekolah" class="page">
-      <div class="card">
-    <input type="text" id="nama" placeholder="NAMA SEKOLAH..." style="margin-bottom:10px">
-    
-    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-        <label style="flex:1; background:#eff6ff; padding:10px; border-radius:10px; text-align:center; font-size:12px; font-weight:800; cursor:pointer; border:1px solid #bfdbfe;">
-            <input type="radio" name="mobil" value="Mobil 1" checked> Mobil 1
-        </label>
-        <label style="flex:1; background:#fff7ed; padding:10px; border-radius:10px; text-align:center; font-size:12px; font-weight:800; cursor:pointer; border:1px solid #fed7aa;">
-            <input type="radio" name="mobil" value="Mobil 2"> Mobil 2
-        </label>
-    </div>
+                <div class="card">
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <span class="label">Belum Terdistribusi</span
+                            ><span id="sisaTarget" class="value-dark">0</span>
+                        </div>
+                        <div class="divider-v"></div>
+                        <div class="stat-item">
+                            <span class="label">Tersedia</span>
+                            <input
+                                type="number"
+                                id="readyInput"
+                                oninput="update()"
+                                placeholder="0"
+                            />
+                        </div>
+                    </div>
+                    <div class="divider-h"></div>
+                    <div style="text-align: center">
+                        <span class="label">Kurang</span><br /><span
+                            id="sisaReady"
+                            class="value-red"
+                            style="font-size: 32px"
+                            >0</span
+                        >
+                    </div>
+                </div>
 
-    <div class="dual-input"><input type="number" id="pk_i" placeholder="PK"><span>+</span><input type="number" id="pk_s" placeholder="S"></div>
-    <div class="dual-input"><input type="number" id="pb_i" placeholder="PB"><span>+</span><input type="number" id="pb_s" placeholder="S"></div>
-    <button class="btn-primary-v2" onclick="tambah()">SIMPAN DATA</button>
+                <div class="btn-group-row">
+                    <button class="btn-reset" onclick="confirmReset()">
+                        RESET
+                    </button>
+                    <button class="btn-archive" onclick="confirmArchive()">
+                        ARSIP
+                    </button>
+                </div>
+            </section>
+
+            <section id="data-sekolah" class="page">
+                <div class="card">
+                    <input
+                        type="text"
+                        id="nama"
+                        placeholder="NAMA SEKOLAH..."
+                        style="margin-bottom: 10px"
+                    />
+
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px">
+                        <label
+                            style="
+                                flex: 1;
+                                background: #eff6ff;
+                                padding: 10px;
+                                border-radius: 10px;
+                                text-align: center;
+                                font-size: 12px;
+                                font-weight: 800;
+                                cursor: pointer;
+                                border: 1px solid #bfdbfe;
+                            "
+                        >
+                            <input
+                                type="radio"
+                                name="mobil"
+                                value="Mobil 1"
+                                checked
+                            />
+                            Mobil 1
+                        </label>
+                        <label
+                            style="
+                                flex: 1;
+                                background: #fff7ed;
+                                padding: 10px;
+                                border-radius: 10px;
+                                text-align: center;
+                                font-size: 12px;
+                                font-weight: 800;
+                                cursor: pointer;
+                                border: 1px solid #fed7aa;
+                            "
+                        >
+                            <input type="radio" name="mobil" value="Mobil 2" />
+                            Mobil 2
+                        </label>
+                    </div>
+<div class="category-container">
+    <label class="category-box">
+        <input type="radio" name="inputMode" value="ikat" checked onchange="togglePlaceholder()">
+        <span>Mode Ikat (x5)</span>
+    </label>
+    <label class="category-box">
+        <input type="radio" name="inputMode" value="porsi" onchange="togglePlaceholder()">
+        <span>Porsi Langsung</span>
+    </label>
 </div>
 
-<div style="display:flex; gap:5px; margin-bottom:10px;">
-    <button onclick="filterMobil('Semua')" class="filter-btn active">Semua</button>
-    <button onclick="filterMobil('Mobil 1')" class="filter-btn" style="background:#bfdbfe; color:#1e40af;">Mobil 1</button>
-    <button onclick="filterMobil('Mobil 2')" class="filter-btn" style="background:#fed7aa; color:#9a3412;">Mobil 2</button>
+
+
+                    
+                    <div class="dual-input">
+    <input type="number" id="pk_i" placeholder="PK (Ikat)" /><span class="plus-sign">+</span><input type="number" id="pk_s" placeholder="S" />
+</div>
+<div class="dual-input">
+    <input type="number" id="pb_i" placeholder="PB (Ikat)" /><span class="plus-sign">+</span><input type="number" id="pb_s" placeholder="S" />
+</div>
+<div class="dual-input" id="row_tendik">
+    <input type="number" id="tendik_i" placeholder="Tendik (Ikat)" /><span class="plus-sign">+</span><input type="number" id="tendik_s" placeholder="S" />
 </div>
 
-      <div class="search-container"><input type="text" id="searchInput" placeholder="Cari sekolah..." onkeyup="render()"></div>
-      <div id="listActive"></div>
-    </section>
+                    <button class="btn-primary-v2" onclick="tambah()">
+                        SIMPAN DATA
+                    </button>
+                </div>
 
-    <section id="historis" class="page">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding: 0 5px;">
-        <h3 style="margin:0; font-weight: 800; color: #1e293b;">RIWAYAT</h3>
-        <button class="btn-clear" onclick="confirmClearHistory()">Hapus Semua</button>
-      </div>
-      <div id="listHistory"></div>
-    </section>
-  </div>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px">
+                    <button
+                        onclick="filterMobil('Semua')"
+                        class="filter-btn active"
+                    >
+                        Semua
+                    </button>
+                    <button
+                        onclick="filterMobil('Mobil 1')"
+                        class="filter-btn"
+                        style="background: #bfdbfe; color: #1e40af"
+                    >
+                        Mobil 1
+                    </button>
+                    <button
+                        onclick="filterMobil('Mobil 2')"
+                        class="filter-btn"
+                        style="background: #fed7aa; color: #9a3412"
+                    >
+                        Mobil 2
+                    </button>
+                </div>
 
-  <div id="customModal" class="modal-overlay">
-    <div class="modal-box">
-      <div id="modalIcon" class="modal-icon">⚠️</div>
-      <h3 id="modalTitle">Konfirmasi</h3>
-      <p id="modalMessage">Apakah Anda yakin?</p>
-      <div class="modal-buttons">
-        <button class="btn-modal-batal" onclick="closeModal()">BATAL</button>
-        <button class="btn-modal-oke" id="modalConfirmBtn">OKE</button>
-      </div>
-    </div>
-  </div>
+                <div class="search-container">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Cari sekolah..."
+                        onkeyup="render()"
+                    />
+                </div>
+                <div id="listActive"></div>
+            </section>
 
-    <div id="snackbar" class="snackbar">
-        <span>Data berhasil dihapus</span>
-        <button class="btn-undo" onclick="undoAction()">BATAL (UNDO)</button>
-    </div>
+            <section id="historis" class="page">
+                <div
+                    style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 15px;
+                        padding: 0 5px;
+                    "
+                >
+                    <h3 style="margin: 0; font-weight: 800; color: #1e293b">
+                        RIWAYAT
+                    </h3>
+                    <button class="btn-clear" onclick="confirmClearHistory()">
+                        Hapus Semua
+                    </button>
+                </div>
+                <div id="listHistory"></div>
+            </section>
+        </div>
 
-    <script src="app.js"></script>
-</body>
+        <div id="customModal" class="modal-overlay">
+            <div class="modal-box">
+                <div id="modalIcon" class="modal-icon">⚠️</div>
+                <h3 id="modalTitle">Konfirmasi</h3>
+                <p id="modalMessage">Apakah Anda yakin?</p>
+                <div class="modal-buttons">
+                    <button class="btn-modal-batal" onclick="closeModal()">
+                        BATAL
+                    </button>
+                    <button class="btn-modal-oke" id="modalConfirmBtn">
+                        OKE
+                    </button>
+                </div>
+            </div>
+        </div>
 
-  <script src="app.js"></script>
+        <div id="snackbar" class="snackbar">
+            <span>Data berhasil dihapus</span>
+            <button class="btn-undo" onclick="undoAction()">
+                BATAL (UNDO)
+            </button>
+        </div>
 
+        <script src="app.js"></script>
+    </body>
 </html>
