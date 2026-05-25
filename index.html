@@ -270,18 +270,12 @@
                     </div>
                 </div>
 
-                <div class="btn-group-row">
-                    <button class="btn-reset" onclick="confirmReset()">
-                        RESET
-                    </button>
-                    <button class="btn-archive" onclick="confirmArchive()">
-                        ARSIP
-                    </button>
-                </div>
+                <div id="ritContainer"></div>
             </section>
 
             <section id="data-sekolah" class="page">
                 <div class="card">
+                    <input type="hidden" id="editIdx" value="" />
                     <input
                         type="text"
                         id="nama"
@@ -328,31 +322,37 @@
                             Mobil 2
                         </label>
                     </div>
-<div class="category-container">
-    <label class="category-box">
-        <input type="radio" name="inputMode" value="ikat" checked onchange="togglePlaceholder()">
-        <span>Mode Ikat (x5)</span>
-    </label>
-    <label class="category-box">
-        <input type="radio" name="inputMode" value="porsi" onchange="togglePlaceholder()">
-        <span>Porsi Langsung</span>
-    </label>
-</div>
 
+                    <div class="label" style="margin-bottom: 5px;">Urutan Pengiriman</div>
+                    <div class="rit-selector-grid">
+                        <label class="rit-select-box"><input type="radio" name="ritSelect" value="Rit 1" checked /> <span>1</span></label>
+                        <label class="rit-select-box"><input type="radio" name="ritSelect" value="Rit 2" /> <span>2</span></label>
+                        <label class="rit-select-box"><input type="radio" name="ritSelect" value="Rit 3" /> <span>3</span></label>
+                        <label class="rit-select-box"><input type="radio" name="ritSelect" value="Rit 4" /> <span>4</span></label>
+                    </div>
 
-
+                    <div class="category-container" style="margin-top: 10px;">
+                        <label class="category-box">
+                            <input type="radio" name="inputMode" value="ikat" checked onchange="togglePlaceholder()">
+                            <span>Mode Ikat (x5)</span>
+                        </label>
+                        <label class="category-box">
+                            <input type="radio" name="inputMode" value="porsi" onchange="togglePlaceholder()">
+                            <span>Porsi Langsung</span>
+                        </label>
+                    </div>
                     
                     <div class="dual-input">
-    <input type="number" id="pk_i" placeholder="PK (Ikat)" /><span class="plus-sign">+</span><input type="number" id="pk_s" placeholder="S" />
-</div>
-<div class="dual-input">
-    <input type="number" id="pb_i" placeholder="PB (Ikat)" /><span class="plus-sign">+</span><input type="number" id="pb_s" placeholder="S" />
-</div>
-<div class="dual-input" id="row_tendik">
-    <input type="number" id="tendik_i" placeholder="Tendik (Ikat)" /><span class="plus-sign">+</span><input type="number" id="tendik_s" placeholder="S" />
-</div>
+                        <input type="number" id="pk_i" placeholder="PK (Ikat)" /><span class="plus-sign">+</span><input type="number" id="pk_s" placeholder="S" />
+                    </div>
+                    <div class="dual-input">
+                        <input type="number" id="pb_i" placeholder="PB (Ikat)" /><span class="plus-sign">+</span><input type="number" id="pb_s" placeholder="S" />
+                    </div>
+                    <div class="dual-input" id="row_tendik">
+                        <input type="number" id="tendik_i" placeholder="Tendik (Ikat)" /><span class="plus-sign">+</span><input type="number" id="tendik_s" placeholder="S" />
+                    </div>
 
-                    <button class="btn-primary-v2" onclick="tambah()">
+                    <button id="btnSimpan" class="btn-primary-v2" onclick="tambah()">
                         SIMPAN DATA
                     </button>
                 </div>
@@ -434,6 +434,54 @@
                 BATAL (UNDO)
             </button>
         </div>
+<div id="editSekolahModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 420px; text-align: left; padding: 18px;">
+        <h3 style="margin-top: 0; margin-bottom: 15px; text-align: center; color: var(--dark); font-weight: 800;">EDIT DATA SEKOLAH</h3>
+        
+        <input type="hidden" id="modalEditIdx" value="" />
+        
+        <div class="label" style="margin-bottom: 4px;">Nama Sekolah</div>
+        <input type="text" id="modalNama" placeholder="NAMA SEKOLAH..." style="margin-bottom: 12px; text-transform: uppercase;" />
+
+        <div class="label" style="margin-bottom: 4px;">Mobil Pengiriman</div>
+        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <label style="flex: 1; background: #eff6ff; padding: 10px; border-radius: 10px; text-align: center; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #bfdbfe;">
+                <input type="radio" name="modalMobil" value="Mobil 1" /> Mobil 1
+            </label>
+            <label style="flex: 1; background: #fff7ed; padding: 10px; border-radius: 10px; text-align: center; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #fed7aa;">
+                <input type="radio" name="modalMobil" value="Mobil 2" /> Mobil 2
+            </label>
+        </div>
+
+        <div class="label" style="margin-bottom: 4px;">Kelompok Rit</div>
+        <div class="rit-selector-grid" style="margin-bottom: 12px;">
+            <label class="rit-select-box"><input type="radio" name="modalRitSelect" value="Rit 1" /> <span>1</span></label>
+            <label class="rit-select-box"><input type="radio" name="modalRitSelect" value="Rit 2" /> <span>2</span></label>
+            <label class="rit-select-box"><input type="radio" name="modalRitSelect" value="Rit 3" /> <span>3</span></label>
+            <label class="rit-select-box"><input type="radio" name="modalRitSelect" value="Rit 4" /> <span>4</span></label>
+        </div>
+
+        <div class="label" style="margin-bottom: 4px;">Status Pengiriman</div>
+        <div style="display: flex; gap: 6px; margin-bottom: 12px; width: 100%;">
+            <label class="rit-select-box" style="padding: 6px 2px;"><input type="radio" name="modalStatus" value="pending" /> <span>PENDING</span></label>
+            <label class="rit-select-box" style="padding: 6px 2px;"><input type="radio" name="modalStatus" value="done" /> <span>DONE</span></label>
+            <label class="rit-select-box" style="padding: 6px 2px;"><input type="radio" name="modalStatus" value="holiday" /> <span>HOLIDAY</span></label>
+        </div>
+
+        <div class="label" style="margin-bottom: 4px;">Input Data Logistik (Selalu Mode Ikat/Porsi Asli)</div>
+        <div class="dual-input" style="margin-top: 0; margin-bottom: 6px;">
+            <input type="number" id="modalPk_i" placeholder="PK (Ikat)" /><span class="plus-sign">+</span><input type="number" id="modalPk_s" placeholder="S" />
+        </div>
+        <div class="dual-input" style="margin-top: 0; margin-bottom: 12px;">
+            <input type="number" id="modalPb_i" placeholder="PB (Ikat)" /><span class="plus-sign">+</span><input type="number" id="modalPb_s" placeholder="S" />
+        </div>
+
+        <div class="modal-buttons" style="margin-top: 15px;">
+            <button class="btn-modal-batal" onclick="closeEditModal()">BATAL</button>
+            <button class="btn-modal-oke" style="background-color: var(--success);" onclick="simpanPerubahanModal()">PERBARUI</button>
+        </div>
+    </div>
+</div>
 
         <script src="app.js"></script>
     </body>
