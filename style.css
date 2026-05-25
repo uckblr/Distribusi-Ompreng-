@@ -473,3 +473,103 @@ input:focus { border-color: var(--primary); background: white; }
     height: 16px;
     accent-color: #3b82f6; /* Warna dot radio disesuaikan tema biru */
 }
+/* =========================================
+   TAMBAHAN STRUKTUR KOMPAK RIT
+   ========================================= */
+.rit-summary-card {
+    background: white;
+    border-radius: 14px;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.rit-summary-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--dark);
+    border-bottom: 1px dashed #e2e8f0;
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.rit-summary-row {
+    display: flex;
+    gap: 15px;
+}
+
+.rit-summary-item {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.rit-summary-item.pk {
+    background: #fef2f2;
+    color: #ef4444;
+}
+
+.rit-summary-item.pb {
+    background: #f0f9ff;
+    color: #0284c7;
+}
+
+.rit-summary-eceran {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.85;
+    margin-left: 2px;
+}
+
+/* Grid Pilihan Rit pada Input Form */
+.rit-selector-grid {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+.rit-select-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+}
+
+.rit-select-box:has(input:checked) {
+    background-color: #f0fdf4;
+    border-color: #22c55e;
+    color: #16a34a;
+}
+
+.rit-select-box input[type="radio"] {
+    margin: 0;
+    width: 13px;
+    height: 13px;
+    accent-color: #22c55e;
+}
+
+.rit-tag {
+    font-size: 9px;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 5px;
+    text-transform: uppercase;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
