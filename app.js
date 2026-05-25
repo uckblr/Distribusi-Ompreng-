@@ -30,10 +30,7 @@ function showPage(pId, el) {
 }
 
 /* =========================================
-   CORE LOGIC (UPDATE DASHBOARD) - FIXED VERSION
-   ========================================= */
-/* =========================================
-   CORE LOGIC (UPDATE DASHBOARD) - FIXED VERSION
+   CORE LOGIC (UPDATE DASHBOARD & RIT GROUPING)
    ========================================= */
 function update() {
     const readyVal = Math.max(0, parseInt(document.getElementById("readyInput")?.value || 0));
@@ -47,7 +44,6 @@ function update() {
     let targetTotal = aktif.reduce((sum, d) => sum + d.total, 0);
     let kirimTotal = done.reduce((sum, d) => sum + d.total, 0);
 
-    // 1. Hitung Total Porsi Riil
     let pkTot = aktif.reduce((sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s), 0);
     let pkDone = done.reduce((sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s), 0);
     let pbTot = aktif.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
@@ -56,12 +52,10 @@ function update() {
     let sisaPK = pkTot - pkDone;
     let sisaPB = pbTot - pbDone;
 
-    // 2. LOGIKA BARU: Hitung total eceran dari data pending untuk dikurangi dari sisa total
     const getSumEceran = (list, tipe) => {
         return list.reduce((sum, d) => sum + (parseInt(tipe === 'PK' ? d.pk_val.s : d.pb_val.s) || 0), 0);
     };
 
-    // 3. LOGIKA DERET ECERAN (Format string eceran saja tanpa kata 'iket')
     const getDeretSisa = (list, tipe) => {
         let listSisa = list
             .map(d => parseInt(tipe === 'PK' ? d.pk_val.s : d.pb_val.s) || 0)
@@ -73,25 +67,29 @@ function update() {
     setTxt("terdistribusiView", kirimTotal);
     setTxt("sisaTarget", Math.max(0, targetTotal - kirimTotal));
 
-    // Perhitungan Angka Bersih (Sisa - Total Eceran Pending)
     let pkEceranTotal = getSumEceran(pending, 'PK');
     let pbEceranTotal = getSumEceran(pending, 'PB');
     let pkBersih = sisaPK - pkEceranTotal;
     let pbBersih = sisaPB - pbEceranTotal;
 
-    // Update PK View - Angka Utama Tetap, di bawahnya angka bersih + deret eceran
     setTxt("totalPKView", pkTot); 
     setTxt("pkDoneView", pkDone);
     setTxt("pkSisaView", sisaPK); 
-    setTxt("pkDetailIkat", `${pkBersih}${getDeretSisa(pending, 'PK')}`);
+    
+    // Penyelarasan format sisa utama atas menggunakan tanda kurung rapat serasi dengan card RIT
+    let deretPkAtas = getDeretSisa(pending, 'PK').trim();
+    setTxt("pkDetailIkat", deretPkAtas ? `${pkBersih} (${deretPkAtas})` : `${pkBersih}`);
 
-    // Update PB View - Angka Utama Tetap, di bawahnya angka bersih + deret eceran
     setTxt("totalPBView", pbTot); 
     setTxt("pbDoneView", pbDone);
     setTxt("pbSisaView", sisaPB); 
-    setTxt("pbDetailIkat", `${pbBersih}${getDeretSisa(pending, 'PB')}`);
+    
+    let deretPbAtas = getDeretSisa(pending, 'PB').trim();
+    setTxt("pbDetailIkat", deretPbAtas ? `${pbBersih} (${deretPbAtas})` : `${pbBersih}`);
 
-    // --- Sisa kode (Progress Bar & LocalStorage) tetap sama ---
+    // LOGIKA DINAMIS PEMBAGIAN PER KELOMPOK RIT
+    renderRitBreakdown(aktif);
+
     let pKirim = targetTotal > 0 ? (kirimTotal / targetTotal) * 100 : 0;
     let pSiap = targetTotal > 0 ? (readyVal / targetTotal) * 100 : 0;
     if (document.getElementById("progressBarDone")) document.getElementById("progressBarDone").style.width = pKirim + "%";
@@ -113,10 +111,62 @@ function update() {
     render(); 
 }
 
+/* =========================================
+   LOGIKA BARU: RENDER BREAKDOWN PER RIT (FIXED)
+   ========================================= */
+function renderRitBreakdown(aktifList) {
+    const container = document.getElementById("ritContainer");
+    if (!container) return;
+    container.innerHTML = "";
 
+    let listRitTersedia = [...new Set(aktifList.map(d => d.rit || "Rit 1"))].sort();
+
+    if (listRitTersedia.length === 0) return;
+
+    listRitTersedia.forEach(ritName => {
+        let sekolahDiRitIni = aktifList.filter(d => (d.rit || "Rit 1") === ritName);
+        let totalRit = sekolahDiRitIni.reduce((sum, d) => sum + d.total, 0);
+        
+        // Filter khusus sekolah status PENDING di RIT ini untuk hitung pengurangan eceran muatan sisa
+        let sekolahPendingRit = sekolahDiRitIni.filter(d => d.status === "pending");
+
+        // --- LOGIKA UNTUK PK RIT ---
+        let pkTotalPorsiAsli = sekolahPendingRit.reduce((sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s), 0);
+        let pkEceranList = sekolahPendingRit.map(d => parseInt(d.pk_val.s) || 0).filter(s => s > 0);
+        let pkTotalEceranRit = pkEceranList.reduce((sum, s) => sum + s, 0);
+        let pkBersihRit = pkTotalPorsiAsli - pkTotalEceranRit;
+
+        // --- LOGIKA UNTUK PB RIT ---
+        let pbTotalPorsiAsli = sekolahPendingRit.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
+        let pbEceranList = sekolahPendingRit.map(d => parseInt(d.pb_val.s) || 0).filter(s => s > 0);
+        let pbTotalEceranRit = pbEceranList.reduce((sum, s) => sum + s, 0);
+        let pbBersihRit = pbTotalPorsiAsli - pbTotalEceranRit;
+
+        // Format deret string tanpa spasi kosong berlebih di ujung kurung tutup
+        let displayEceranPk = pkEceranList.length > 0 ? ` (+ ${pkEceranList.join(" + ")})` : "";
+        let displayEceranPb = pbEceranList.length > 0 ? ` (+ ${pbEceranList.join(" + ")})` : "";
+
+        container.innerHTML += `
+            <div class="rit-summary-card">
+                <div class="rit-summary-title">
+                    <span>${ritName.toUpperCase()}</span>
+                    <span>Total: ${totalRit}</span>
+                </div>
+                <div class="rit-summary-row">
+                    <div class="rit-summary-item pk">
+                        PK ${pkBersihRit}${displayEceranPk}
+                    </div>
+                    <div class="rit-summary-item pb">
+                        PB ${pbBersihRit}${displayEceranPb}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+}
 
 /* =========================================
-   UI RENDER (LIST & MULTI-MOBIL)
+   UI RENDER (LIST ACTIVE & HISTORY)
    ========================================= */
 function filterMobil(m) {
     currentFilter = m;
@@ -153,6 +203,7 @@ function render() {
         let pkT = hitung(d.pk_val.i, d.pk_val.s);
         let pbT = hitung(d.pb_val.i, d.pb_val.s);
         let mobilClass = d.mobil === "Mobil 1" ? "tag-m1" : "tag-m2";
+        let ritLabel = d.rit || "Rit 1";
 
         let rekLabel = "";
         let borderStyle = "";
@@ -167,6 +218,7 @@ function render() {
         listActive.innerHTML += `
             <div class="item ${d.status}" style="${borderStyle}">
                 <div class="action">
+                    <button class="smallbtn" style="background:#3b82f6" onclick="editSekolah(${originalIdx})">✏️</button>
                     ${d.status === 'pending' ? 
                         `<button class="smallbtn" style="background:#8b5cf6" onclick="naikkanPrioritas(${originalIdx})">🔼</button>
                          <button class="smallbtn" style="background:#f59e0b" onclick="setStatus(${originalIdx}, 'holiday')">🏠</button>
@@ -177,7 +229,8 @@ function render() {
                 </div>
                 <div style="margin-bottom:5px">
                     <span class="badge" style="background:${statusColor}">${d.status.toUpperCase()}</span>
-                    <span class="mobil-tag ${mobilClass}" style="font-size:9px; font-weight:900; padding:2px 6px; border-radius:4px; margin-left:5px;">${d.mobil}</span>
+                    <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
+                    <span class="rit-tag">${ritLabel.toUpperCase()}</span>
                     ${rekLabel}
                 </div>
                 <span class="item-title" style="display:block; font-weight:800; margin-bottom:8px;">${d.nama}</span>
@@ -208,58 +261,60 @@ function render() {
 }
 
 /* =========================================
-   ACTIONS
+   ACTIONS (TAMBAH & EDIT DATA)
    ========================================= */
 function tambah() {
     let nama = document.getElementById("nama").value.trim().toUpperCase();
     if (!nama) return;
     let mobil = document.querySelector('input[name="mobil"]:checked').value;
+    let rit = document.querySelector('input[name="ritSelect"]:checked').value;
+    
     let pki = document.getElementById("pk_i").value, pks = document.getElementById("pk_s").value;
     let pbi = document.getElementById("pb_i").value, pbs = document.getElementById("pb_s").value;
-    
-    // Ambil input tambahan untuk Tendik
     let tendiki = document.getElementById("tendik_i").value;
-    
-    // Ambil mode input yang sedang aktif (ikat atau porsi)
     let mode = document.querySelector('input[name="inputMode"]:checked').value;
     
     let pkUtama = parseInt(pki) || 0;
     let pbUtama = parseInt(pbi) || 0;
     let tendikUtama = parseInt(tendiki) || 0;
-    
     let pkTotalEceran = parseInt(pks) || 0;
     let pbTotalEceran = parseInt(pbs) || 0;
 
     let pkHitung, pbHitung;
 
     if (mode === "ikat") {
-        // JIKA MODE IKAT: Tendik tidak ada, gunakan rumus asli bawaan Anda
         pkHitung = (pkUtama * 5) + pkTotalEceran;
         pbHitung = (pbUtama * 5) + pbTotalEceran;
     } else {
-        // JIKA MODE PORSI LANGSUNG: Angka utama dihitung murni porsi langsung
         pkHitung = pkUtama; 
-        
-        // Gabungkan nilai Tendik langsung ke total PB porsi mentah sebelum dipecah
         pbHitung = pbUtama + tendikUtama;
 
-        // Pecah otomatis nilai PK ke format basis 5 (Ikat + Sisa)
         pkTotalEceran = pkUtama % 5;
         pkUtama = Math.floor(pkUtama / 5);
 
-        // Pecah otomatis nilai PB (yang sudah digabung Tendik) ke format basis 5 (Ikat + Sisa)
         pbTotalEceran = pbHitung % 5;
         pbUtama = Math.floor(pbHitung / 5);
     }
     
-    data.unshift({ 
-        nama, mobil, status: "pending", 
+    let editIdxVal = document.getElementById("editIdx").value;
+    
+    let payload = { 
+        nama, mobil, rit, status: "pending", 
         total: pkHitung + pbHitung,
         pk_val: { i: pkUtama, s: pkTotalEceran }, 
         pb_val: { i: pbUtama, s: pbTotalEceran } 
-    });
+    };
+
+    if (editIdxVal !== "") {
+        let idx = parseInt(editIdxVal);
+        payload.status = data[idx].status; 
+        data[idx] = payload;
+        document.getElementById("editIdx").value = "";
+        document.getElementById("btnSimpan").innerText = "SIMPAN DATA";
+    } else {
+        data.unshift(payload);
+    }
     
-    // Bersihkan semua form input termasuk input tendik setelah tombol simpan diklik
     ["nama", "pk_i", "pk_s", "pb_i", "pb_s", "tendik_i"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
@@ -268,7 +323,71 @@ function tambah() {
     update();
 }
 
+/* =========================================
+   FUNGSI POP-UP MODAL EDIT SEKOLAH (BARU)
+   ========================================= */
+function editSekolah(idx) {
+    let item = data[idx];
+    
+    document.getElementById("modalEditIdx").value = idx;
+    document.getElementById("modalNama").value = item.nama;
+    
+    document.querySelectorAll('input[name="modalMobil"]').forEach(radio => {
+        radio.checked = radio.value === item.mobil;
+    });
 
+    document.querySelectorAll('input[name="modalRitSelect"]').forEach(radio => {
+        radio.checked = radio.value === (item.rit || "Rit 1");
+    });
+
+    document.querySelectorAll('input[name="modalStatus"]').forEach(radio => {
+        radio.checked = radio.value === item.status;
+    });
+
+    document.getElementById("modalPk_i").value = item.pk_val.i;
+    document.getElementById("modalPk_s").value = item.pk_val.s;
+    document.getElementById("modalPb_i").value = item.pb_val.i;
+    document.getElementById("modalPb_s").value = item.pb_val.s;
+
+    document.getElementById("editSekolahModal").style.display = "flex";
+}
+
+function closeEditModal() {
+    document.getElementById("editSekolahModal").style.display = "none";
+}
+
+function simpanPerubahanModal() {
+    let idx = parseInt(document.getElementById("modalEditIdx").value);
+    if (isNaN(idx)) return;
+
+    let nama = document.getElementById("modalNama").value.trim().toUpperCase();
+    if (!nama) return;
+
+    let mobil = document.querySelector('input[name="modalMobil"]:checked').value;
+    let rit = document.querySelector('input[name="modalRitSelect"]:checked').value;
+    let status = document.querySelector('input[name="modalStatus"]:checked').value;
+    
+    let pki = parseInt(document.getElementById("modalPk_i").value) || 0;
+    let pks = parseInt(document.getElementById("modalPk_s").value) || 0;
+    let pbi = parseInt(document.getElementById("modalPb_i").value) || 0;
+    let pbs = parseInt(document.getElementById("modalPb_s").value) || 0;
+
+    let pkHitung = (pki * 5) + pks;
+    let pbHitung = (pbi * 5) + pbs;
+
+    data[idx] = {
+        nama,
+        mobil,
+        rit,
+        status,
+        total: pkHitung + pbHitung,
+        pk_val: { i: pki, s: pks },
+        pb_val: { i: pbi, s: pbs }
+    };
+
+    closeEditModal();
+    update();
+}
 
 function naikkanPrioritas(idx) {
     if (idx > 0) {
@@ -282,7 +401,7 @@ function setStatus(i, s) { data[i].status = s; update(); }
 function restore(i) { data.unshift({...historyData[i], status:"pending"}); historyData.splice(i, 1); update(); }
 
 /* =========================================
-   MODALS & UNDO
+   MODALS, UNDO & CLEAR HISTORIES
    ========================================= */
 function showSnackbar(msg) {
     const sb = document.getElementById("snackbar");
@@ -338,87 +457,61 @@ function confirmHapusHist(i) {
     });
 }
 
-function confirmReset() {
-    openModal("🚨", "Reset", "Hapus semua data dasbor?", "#ef4444", () => {
-        data = [];
+function confirmClearHistory() {
+    openModal("🚨", "Hapus Semua", "Kosongkan semua riwayat permanen?", "#ef4444", () => {
+        historyData = [];
         update();
-    });
-}
-
-function confirmArchive() {
-    let s = data.filter(d => d.status === 'done' || d.status === 'holiday');
-    if(!s.length) return alert("Tidak ada data selesai");
-    openModal("📦", "Arsip", `Arsip ${s.length} sekolah?`, "#22c55e", () => {
-        historyData = [...s, ...historyData];
-        data = data.filter(d => d.status === 'pending');
-        update();
+        showSnackbar("Semua riwayat dibersihkan");
     });
 }
 
 document.addEventListener("touchstart", function() {}, true);
 
 document.addEventListener('touchstart', function(e) {
-    // Jika yang disentuh adalah tombol (smallbtn)
     if (e.target.closest('.smallbtn')) {
         e.target.closest('.smallbtn').classList.add('tekan');
     }
 }, {passive: true});
 
-/* Efek Tekan untuk SEMUA Tombol */
 document.addEventListener('touchstart', function(e) {
-    // Cari apakah yang ditekan adalah button, atau punya class yang mengandung kata 'btn'
-    let el = e.target.closest('button, .smallbtn, .btn-primary-v2, .btn-reset, .btn-archive, .nav-item');
-    
+    let el = e.target.closest('button, .smallbtn, .btn-primary-v2, .nav-item, .rit-select-box');
     if (el) {
         el.classList.add('tekan');
     }
 }, {passive: true});
 
 document.addEventListener('touchend', function(e) {
-    let el = e.target.closest('button, .smallbtn, .btn-primary-v2, .btn-reset, .btn-archive, .nav-item');
-    
+    let el = e.target.closest('button, .smallbtn, .btn-primary-v2, .nav-item, .rit-select-box');
     if (el) {
         setTimeout(() => {
             el.classList.remove('tekan');
         }, 100);
     }
 }, {passive: true});
+
 function togglePlaceholder() {
     let mode = document.querySelector('input[name="inputMode"]:checked').value;
     const pkInput = document.getElementById("pk_i");
     const pbInput = document.getElementById("pb_i");
     const tendikInput = document.getElementById("tendik_i");
     const rowTendik = document.getElementById("row_tendik");
-    
-    // Ambil semua elemen input eceran dan tanda plus-nya
     const eceranElements = document.querySelectorAll('#pk_s, #pb_s, #tendik_s, .plus-sign');
     
     if (mode === "porsi") {
         if(pkInput) pkInput.placeholder = "PK (Porsi)";
         if(pbInput) pbInput.placeholder = "PB (Porsi)";
         if(tendikInput) tendikInput.placeholder = "Tendik (Porsi)";
-        
-        // Sembunyikan kolom eceran S dan tanda "+"
         eceranElements.forEach(el => el.style.display = 'none');
-        
-        // MUNCULKAN baris Tendik saat mode porsi langsung
         if (rowTendik) rowTendik.style.display = 'flex';
     } else {
         if(pkInput) pkInput.placeholder = "PK (Ikat)";
         if(pbInput) pbInput.placeholder = "PB (Ikat)";
-        
-        // Munculkan kembali kolom eceran S dan tanda "+" untuk PK & PB
         eceranElements.forEach(el => el.style.display = 'inline-block');
-        
-        // SEMBUNYIKAN baris Tendik secara total saat mode ikat
         if (rowTendik) rowTendik.style.display = 'none';
     }
 }
 
-// Jalankan fungsi ini sekali di paling bawah script agar saat pertama kali dimuat kondisinya langsung menyesuaikan
 togglePlaceholder();
-
-
 
 // Start
 update();
