@@ -204,18 +204,20 @@ body {
    ========================================= */
 .smallbtn {
     border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    padding: 5px 8px; /* Padding fleksibel agar teks muat */
+    border-radius: 6px;
     color: white;
-    font-size: 14px;
+    font-size: 10px;    /* Ukuran font kecil tapi terbaca */
+    font-weight: 800;   /* Bold agar tegas */
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: 0.2s;
+    min-width: 40px;    /* Pastikan tombol punya lebar minimum */
 }
+
 
 .smallbtn:active { transform: scale(100); }
 
@@ -572,4 +574,21 @@ input:focus { border-color: var(--primary); background: white; }
     background: #f1f5f9;
     color: #475569;
     border: 1px solid #cbd5e1;
+}
+
+/* Style untuk Ikon X */
+.close-icon {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: 200;
+    color: #94a3b8;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.close-icon:hover {
+    color: #1e293b;
 }
