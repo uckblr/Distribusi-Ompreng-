@@ -468,13 +468,26 @@
             <label class="rit-select-box" style="padding: 6px 2px;"><input type="radio" name="modalStatus" value="holiday" /> <span>HOLIDAY</span></label>
         </div>
 
-        <div class="label" style="margin-bottom: 4px;">Input Data Logistik (Selalu Mode Ikat/Porsi Asli)</div>
+               <div class="label" style="margin-bottom: 4px;">Ubah Data Logistik</div>
+        
+        <div class="category-container" style="margin-top: 5px; margin-bottom: 10px; padding: 0;">
+            <label class="category-box">
+                <input type="radio" name="modalInputMode" value="ikat" checked onchange="toggleModalPlaceholder()">
+                <span>Mode Ikat (x5)</span>
+            </label>
+            <label class="category-box">
+                <input type="radio" name="modalInputMode" value="porsi" onchange="toggleModalPlaceholder()">
+                <span>Porsi Langsung</span>
+            </label>
+        </div>
+
         <div class="dual-input" style="margin-top: 0; margin-bottom: 6px;">
-            <input type="number" id="modalPk_i" placeholder="PK (Ikat)" /><span class="plus-sign">+</span><input type="number" id="modalPk_s" placeholder="S" />
+            <input type="number" id="modalPk_i" placeholder="PK (Ikat)" /><span class="modal-plus-sign plus-sign">+</span><input type="number" id="modalPk_s" placeholder="S" />
         </div>
         <div class="dual-input" style="margin-top: 0; margin-bottom: 12px;">
-            <input type="number" id="modalPb_i" placeholder="PB (Ikat)" /><span class="plus-sign">+</span><input type="number" id="modalPb_s" placeholder="S" />
+            <input type="number" id="modalPb_i" placeholder="PB (Ikat)" /><span class="modal-plus-sign plus-sign">+</span><input type="number" id="modalPb_s" placeholder="S" />
         </div>
+
 
         <div class="modal-buttons" style="margin-top: 15px;">
             <button class="btn-modal-batal" onclick="closeEditModal()">BATAL</button>
@@ -483,6 +496,21 @@
     </div>
 </div>
 
+<div id="infoModal" class="modal-overlay" onclick="closeInfoModal()">
+    <div class="modal-box" style="max-width: 320px; text-align: left; position: relative;" onclick="event.stopPropagation()">
+        <!-- Ikon X -->
+        <span class="close-icon" onclick="closeInfoModal()">&times;</span>
+        
+        <h3 id="infoModalTitle" style="text-align: center; color: var(--primary); margin-top: 0;"></h3>
+        <div id="infoModalContent" style="margin: 15px 0; font-size: 14px; line-height: 1.8;">
+            <!-- Data akan diisi via JS -->
+        </div>
+    </div>
+</div>
+
+
+
         <script src="app.js"></script>
     </body>
 </html>
+
