@@ -127,7 +127,7 @@ function renderRitBreakdown(aktifList) {
         let sekolahDiRitIni = aktifList.filter(d => (d.rit || "Rit 1") === ritName);
         let totalRit = sekolahDiRitIni.reduce((sum, d) => sum + d.total, 0);
         
-        // Filter khusus sekolah status PENDING di RIT ini untuk hitung pengurangan eceran muatan sisa
+        // Filter khusus sekolah status PENDING di RIT ini
         let sekolahPendingRit = sekolahDiRitIni.filter(d => d.status === "pending");
 
         // --- LOGIKA UNTUK PK RIT ---
@@ -142,16 +142,38 @@ function renderRitBreakdown(aktifList) {
         let pbTotalEceranRit = pbEceranList.reduce((sum, s) => sum + s, 0);
         let pbBersihRit = pbTotalPorsiAsli - pbTotalEceranRit;
 
-        // Format deret string tanpa spasi kosong berlebih di ujung kurung tutup
+        // Format deret string tanpa spasi kosong berlebih
         let displayEceranPk = pkEceranList.length > 0 ? ` (+ ${pkEceranList.join(" + ")})` : "";
         let displayEceranPb = pbEceranList.length > 0 ? ` (+ ${pbEceranList.join(" + ")})` : "";
+
+        // --- LOGIKA BARU: RENDER NAMA SEKOLAH ---
+        let listSekolahHTML = `<div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px dashed #e2e8f0; padding-top: 8px;">`;
+                sekolahDiRitIni.forEach(sek => {
+            // Dapatkan index asli untuk modal
+            let originalIdx = data.indexOf(sek);
+            let cursorStyle = "cursor: pointer;"; // Menambah efek tangan saat di-hover
+            
+            if (sek.status === "done") {
+                listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" style="font-size: 10px; background: #f8fafc; color: #94a3b8; padding: 3px 6px; border-radius: 4px; text-decoration: line-through; border: 1px solid #e2e8f0; ${cursorStyle}">${sek.nama}</span>`;
+            } else {
+                listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" style="font-size: 10px; font-weight: 700; background: #eff6ff; color: #1d4ed8; padding: 3px 6px; border-radius: 4px; border: 1px solid #bfdbfe; ${cursorStyle}">${sek.nama}</span>`;
+            }
+        });
+
+        listSekolahHTML += `</div>`;
 
         container.innerHTML += `
             <div class="rit-summary-card">
                 <div class="rit-summary-title">
-                    <span>${ritName.toUpperCase()}</span>
-                    <span>Total: ${totalRit}</span>
-                </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <span>${ritName.toUpperCase()}</span>
+<button onclick="shareRitSummary('${ritName}')" style="background:#e2e8f0; border:none; border-radius:4px; padding:2px 8px; cursor:pointer; font-size:9px; font-weight:800; color:#475569;">
+    SHARE
+</button>
+
+    </div>
+    <span>Total: ${totalRit}</span>
+</div>
                 <div class="rit-summary-row">
                     <div class="rit-summary-item pk">
                         PK ${pkBersihRit}${displayEceranPk}
@@ -160,10 +182,12 @@ function renderRitBreakdown(aktifList) {
                         PB ${pbBersihRit}${displayEceranPb}
                     </div>
                 </div>
+                ${listSekolahHTML}
             </div>
         `;
     });
 }
+
 
 /* =========================================
    UI RENDER (LIST ACTIVE & HISTORY)
@@ -186,17 +210,38 @@ function render() {
 
     listActive.innerHTML = ""; listHist.innerHTML = "";
 
+    // 1. Urutkan data secara global terlebih dahulu
     let sorted = [...data].sort((a, b) => {
-        const urutan = { "pending": 1, "done": 2, "holiday": 3 };
-        return urutan[a.status] - urutan[b.status];
+        const urutanStatus = { "pending": 1, "done": 2, "holiday": 3 };
+        let compareStatus = urutanStatus[a.status] - urutanStatus[b.status];
+        
+        if (compareStatus === 0) {
+            let ritA = a.rit || "Rit 1";
+            let ritB = b.rit || "Rit 1";
+            return ritA.localeCompare(ritB);
+        }
+        return compareStatus;
     });
 
+    // 2. Tentukan status "SIAP" secara global (sebelum difilter) agar stok adil
+    sorted.forEach(d => {
+        d._isSiap = false; // Reset properti sementara
+        if (d.status === "pending") {
+            if (stokCek >= d.total && stokCek > 0) {
+                d._isSiap = true;
+                stokCek -= d.total; // Kurangi stok secara global
+            }
+        }
+    });
+
+    // 3. Baru lakukan filter berdasarkan Search / Mobil
     let filtered = sorted.filter(d => {
         const matchesSearch = d.nama.toLowerCase().includes(search);
         const matchesMobil = currentFilter === "Semua" || d.mobil === currentFilter;
         return matchesSearch && matchesMobil;
     });
 
+    // 4. Render ke layar
     filtered.forEach((d) => {
         let originalIdx = data.findIndex(item => item === d);
         let statusColor = d.status === 'done' ? "#22c55e" : (d.status === 'holiday' ? "#64748b" : "#f59e0b");
@@ -207,25 +252,22 @@ function render() {
 
         let rekLabel = "";
         let borderStyle = "";
-        if (d.status === "pending") {
-            if (stokCek >= d.total && stokCek > 0) {
-                rekLabel = `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:5px;">SIAP</span>`;
-                borderStyle = "border: 2px solid #22c55e;";
-                stokCek -= d.total;
-            }
+        
+        // Cek properti _isSiap yang sudah dihitung di atas
+        if (d._isSiap) {
+            rekLabel = `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:5px;">SIAP</span>`;
+            borderStyle = "border: 2px solid #22c55e;";
         }
-
         listActive.innerHTML += `
             <div class="item ${d.status}" style="${borderStyle}">
                 <div class="action">
-                    <button class="smallbtn" style="background:#3b82f6" onclick="editSekolah(${originalIdx})">✏️</button>
+                    <button class="smallbtn" style="background:#3b82f6" onclick="editSekolah(${originalIdx})">EDIT</button>
                     ${d.status === 'pending' ? 
-                        `<button class="smallbtn" style="background:#8b5cf6" onclick="naikkanPrioritas(${originalIdx})">🔼</button>
-                         <button class="smallbtn" style="background:#f59e0b" onclick="setStatus(${originalIdx}, 'holiday')">🏠</button>
-                         <button class="smallbtn" style="background:#22c55e" onclick="setStatus(${originalIdx}, 'done')">✔</button>` : 
-                        `<button class="smallbtn" style="background:#64748b" onclick="setStatus(${originalIdx}, 'pending')">↺</button>`
+                        `<button class="smallbtn" style="background:#f59e0b" onclick="setStatus(${originalIdx}, 'holiday')">LBR</button>
+                         <button class="smallbtn" style="background:#22c55e" onclick="setStatus(${originalIdx}, 'done')">DONE</button>` : 
+                        `<button class="smallbtn" style="background:#64748b" onclick="setStatus(${originalIdx}, 'pending')">REDO</button>`
                     }
-                    <button class="smallbtn" style="background:#ef4444" onclick="confirmHapus(${originalIdx})">✕</button>
+                    <button class="smallbtn" style="background:#ef4444" onclick="confirmHapus(${originalIdx})">DEL</button>
                 </div>
                 <div style="margin-bottom:5px">
                     <span class="badge" style="background:${statusColor}">${d.status.toUpperCase()}</span>
@@ -234,6 +276,7 @@ function render() {
                     ${rekLabel}
                 </div>
                 <span class="item-title" style="display:block; font-weight:800; margin-bottom:8px;">${d.nama}</span>
+                
                 <div style="display:flex; flex-direction:column; gap:4px">
                     <div style="background:#fef2f2; padding:4px 8px; border-radius:6px; display:flex; justify-content:space-between; font-size:11px; color:#b91c1c; border:1px solid #fee2e2;">
                         <b>PK</b> <span>${pkT} (${Math.floor(pkT/5)} iket + ${pkT%5})</span>
@@ -259,6 +302,7 @@ function render() {
             </div>`;
     });
 }
+
 
 /* =========================================
    ACTIONS (TAMBAH & EDIT DATA)
@@ -324,8 +368,48 @@ function tambah() {
 }
 
 /* =========================================
-   FUNGSI POP-UP MODAL EDIT SEKOLAH (BARU)
+   FUNGSI POP-UP MODAL EDIT SEKOLAH (BARU & DIPERBAIKI)
    ========================================= */
+
+// 1. Fungsi untuk mengganti placeholder (Ikat / Porsi) di dalam Modal Edit
+function toggleModalPlaceholder() {
+    let modeNode = document.querySelector('input[name="modalInputMode"]:checked');
+    if (!modeNode) return;
+    let mode = modeNode.value;
+
+    const pkInput = document.getElementById("modalPk_i");
+    const pbInput = document.getElementById("modalPb_i");
+    const eceranElements = document.querySelectorAll('#modalPk_s, #modalPb_s, .modal-plus-sign');
+    
+    let idx = document.getElementById("modalEditIdx").value;
+    let item = data[idx];
+
+    if (mode === "porsi") {
+        pkInput.placeholder = "PK (Total Porsi)";
+        pbInput.placeholder = "PB (Total Porsi)";
+        eceranElements.forEach(el => el.style.display = 'none');
+        
+        // Konversi otomatis ke total porsi saat tombol ditekan
+        if(item && item.pk_val) {
+            pkInput.value = (item.pk_val.i * 5) + parseInt(item.pk_val.s || 0);
+            pbInput.value = (item.pb_val.i * 5) + parseInt(item.pb_val.s || 0);
+        }
+    } else {
+        pkInput.placeholder = "PK (Ikat)";
+        pbInput.placeholder = "PB (Ikat)";
+        eceranElements.forEach(el => el.style.display = 'inline-block');
+        
+        // Kembalikan ke format Ikat + Sisa asli
+        if(item && item.pk_val) {
+            pkInput.value = item.pk_val.i;
+            document.getElementById("modalPk_s").value = item.pk_val.s;
+            pbInput.value = item.pb_val.i;
+            document.getElementById("modalPb_s").value = item.pb_val.s;
+        }
+    }
+}
+
+// 2. Fungsi untuk membuka modal Edit
 function editSekolah(idx) {
     let item = data[idx];
     
@@ -344,18 +428,27 @@ function editSekolah(idx) {
         radio.checked = radio.value === item.status;
     });
 
+    // Reset radio button ke mode Ikat secara default
+    let modeRadios = document.querySelectorAll('input[name="modalInputMode"]');
+    if(modeRadios.length > 0) modeRadios[0].checked = true;
+
     document.getElementById("modalPk_i").value = item.pk_val.i;
     document.getElementById("modalPk_s").value = item.pk_val.s;
     document.getElementById("modalPb_i").value = item.pb_val.i;
     document.getElementById("modalPb_s").value = item.pb_val.s;
 
+    // Pastikan UI menyesuaikan state mode Ikat
+    toggleModalPlaceholder();
+
     document.getElementById("editSekolahModal").style.display = "flex";
 }
 
+// 3. Fungsi untuk menutup modal Edit (tidak berubah)
 function closeEditModal() {
     document.getElementById("editSekolahModal").style.display = "none";
 }
 
+// 4. Fungsi menyimpan perubahan dari Modal
 function simpanPerubahanModal() {
     let idx = parseInt(document.getElementById("modalEditIdx").value);
     if (isNaN(idx)) return;
@@ -367,13 +460,38 @@ function simpanPerubahanModal() {
     let rit = document.querySelector('input[name="modalRitSelect"]:checked').value;
     let status = document.querySelector('input[name="modalStatus"]:checked').value;
     
+    let modeNode = document.querySelector('input[name="modalInputMode"]:checked');
+    let mode = modeNode ? modeNode.value : "ikat";
+    
     let pki = parseInt(document.getElementById("modalPk_i").value) || 0;
     let pks = parseInt(document.getElementById("modalPk_s").value) || 0;
     let pbi = parseInt(document.getElementById("modalPb_i").value) || 0;
     let pbs = parseInt(document.getElementById("modalPb_s").value) || 0;
 
-    let pkHitung = (pki * 5) + pks;
-    let pbHitung = (pbi * 5) + pbs;
+    let pkHitung, pbHitung;
+    let pkUtama, pkTotalEceran, pbUtama, pbTotalEceran;
+
+    if (mode === "ikat") {
+        // Jika input format ikat
+        pkHitung = (pki * 5) + pks;
+        pbHitung = (pbi * 5) + pbs;
+        
+        pkUtama = pki;
+        pkTotalEceran = pks;
+        pbUtama = pbi;
+        pbTotalEceran = pbs;
+    } else {
+        // Jika input format porsi langsung (dari input pertama, nilai sisa tidak dihiraukan)
+        pkHitung = pki; 
+        pbHitung = pbi; 
+        
+        // Sistem otomatis memecahnya menjadi format ikat untuk database
+        pkTotalEceran = pkHitung % 5;
+        pkUtama = Math.floor(pkHitung / 5);
+
+        pbTotalEceran = pbHitung % 5;
+        pbUtama = Math.floor(pbHitung / 5);
+    }
 
     data[idx] = {
         nama,
@@ -381,20 +499,17 @@ function simpanPerubahanModal() {
         rit,
         status,
         total: pkHitung + pbHitung,
-        pk_val: { i: pki, s: pks },
-        pb_val: { i: pbi, s: pbs }
+        pk_val: { i: pkUtama, s: pkTotalEceran },
+        pb_val: { i: pbUtama, s: pbTotalEceran }
     };
 
     closeEditModal();
     update();
 }
 
-function naikkanPrioritas(idx) {
-    if (idx > 0) {
-        const item = data.splice(idx, 1)[0];
-        data.unshift(item);
-        update();
-    }
+
+function closeEditModal() {
+    document.getElementById("editSekolahModal").style.display = "none";
 }
 
 function setStatus(i, s) { data[i].status = s; update(); }
@@ -511,7 +626,93 @@ function togglePlaceholder() {
     }
 }
 
+function shareRitSummary(ritName) {
+    // Ambil data sekolah berdasarkan Rit yang dipilih
+    let sekolahDiRitIni = data.filter(d => (d.rit || "Rit 1") === ritName);
+    
+    let text = `*Jadwal Pengiriman: ${ritName.toUpperCase()}*\n\n`;
+
+    sekolahDiRitIni.forEach(s => {
+        let pk = hitung(s.pk_val.i, s.pk_val.s);
+        let pb = hitung(s.pb_val.i, s.pb_val.s);
+        let statusTag = s.status === 'done' ? '(✅ Selesai)' : '';
+        text += `• ${s.nama} ${statusTag}\n  PK: ${pk} | PB: ${pb}\n`;
+    });
+
+    // Hitung total untuk Rit ini
+    let totPK = sekolahDiRitIni.reduce((sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s), 0);
+    let totPB = sekolahDiRitIni.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
+
+    text += `\n-----------------------\n*TOTAL MUATAN:*\nPK: ${totPK}\nPB: ${totPB}`;
+
+    // Fungsi Share (Native HP atau WhatsApp)
+    if (navigator.share) {
+        navigator.share({
+            title: 'Jadwal Kirim',
+            text: text
+        }).catch(err => console.log('Batal share'));
+    } else {
+        // Fallback untuk browser yang tidak mendukung share API
+        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
+    }
+}
+function showSchoolInfo(idx) {
+    let s = data[idx];
+    if (!s) return;
+
+    let pkT = hitung(s.pk_val.i, s.pk_val.s);
+    let pbT = hitung(s.pb_val.i, s.pb_val.s);
+    
+    // Warna badge status
+    let statusColor = s.status === 'done' ? '#22c55e' : (s.status === 'holiday' ? '#64748b' : '#f59e0b');
+
+    document.getElementById('infoModalTitle').innerText = s.nama;
+    document.getElementById('infoModalContent').innerHTML = `
+        <div style="text-align: center; margin-bottom: 15px;">
+            <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;">
+                ${s.status.toUpperCase()}
+            </span>
+            <div style="display: flex; justify-content: center; gap: 15px; margin-top: 10px; font-size: 12px; color: #64748b; font-weight: 700;">
+                <span>📍 ${s.mobil}</span>
+                <span>🚚 ${s.rit || 'Rit 1'}</span>
+            </div>
+        </div>
+
+        <!-- Box PK -->
+        <div style="background: #fff1f2; padding: 12px; border-radius: 12px; border: 1px solid #fecaca; margin-bottom: 10px;">
+            <div style="font-size: 10px; font-weight: 800; color: #991b1b; margin-bottom: 4px; text-transform: uppercase;">PK</div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <span style="font-size: 20px; font-weight: 900; color: #b91c1c;">${pkT}</span>
+                <span style="font-size: 12px; font-weight: 600; color: #b91c1c;">${s.pk_val.i} ikat + ${s.pk_val.s}</span>
+            </div>
+        </div>
+
+        <!-- Box PB -->
+        <div style="background: #f0f9ff; padding: 12px; border-radius: 12px; border: 1px solid #bae6fd; margin-bottom: 10px;">
+            <div style="font-size: 10px; font-weight: 800; color: #075985; margin-bottom: 4px; text-transform: uppercase;">PB</div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <span style="font-size: 20px; font-weight: 900; color: #0369a1;">${pbT}</span>
+                <span style="font-size: 12px; font-weight: 600; color: #0369a1;">${s.pb_val.i} ikat + ${s.pb_val.s}</span>
+            </div>
+        </div>
+
+        <!-- Box Total -->
+        <div style="padding: 12px; background: #1e293b; border-radius: 12px; text-align: center; color: white;">
+            <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Total Keseluruhan</div>
+            <div style="font-size: 32px; font-weight: 900; color: #f8fafc; margin-top: 2px;">${s.total}</div>
+        </div>
+    `;
+    
+    document.getElementById('infoModal').style.display = 'flex';
+}
+
+
+function closeInfoModal() {
+    document.getElementById('infoModal').style.display = 'none';
+}
+
 togglePlaceholder();
 
 // Start
 update();
+
