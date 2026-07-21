@@ -1,516 +1,729 @@
 <!doctype html>
 <html lang="id">
-    <head>
-        <meta charset="UTF-8" />
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-        />
-        <title>UCKBLR</title>
-        <link rel="stylesheet" href="style.css" />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
-            rel="stylesheet"
-        />
-    </head>
-    <body>
-        <nav class="navbar">
-            <div class="nav-item active" onclick="showPage('dashboard', this)">
-                <span class="icon">📊</span><span class="text">Dasbor</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>UCKBLR</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @keyframes putar {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="nav-item active" onclick="showPage('dashboard', this)">
+        <span class="icon">📊</span><span class="text">Dasbor</span>
+      </div>
+      <div class="nav-item" onclick="showPage('data-sekolah', this)">
+        <span class="icon">🏫</span><span class="text">Sekolah</span>
+      </div>
+      <div class="nav-item" onclick="showPage('historis', this)">
+        <span class="icon">📜</span><span class="text">Histori</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <section id="dashboard" class="page active">
+        <div class="card">
+          <div class="stat-row">
+            <div class="stat-item">
+              <span class="label">Total Penerima</span
+              ><span id="targetView" class="value">0</span>
             </div>
-            <div class="nav-item" onclick="showPage('data-sekolah', this)">
-                <span class="icon">🏫</span><span class="text">Sekolah</span>
+            <div class="divider-v"></div>
+            <div class="stat-item">
+              <span class="label">Terdistribusi</span
+              ><span
+                id="terdistribusiView"
+                class="value"
+                style="color: var(--success)"
+                >0</span
+              >
             </div>
-            <div class="nav-item" onclick="showPage('historis', this)">
-                <span class="icon">📜</span><span class="text">Histori</span>
+          </div>
+          <div style="text-align: center; margin-top: 12px">
+            <span
+              id="sekolahDoneCount"
+              style="
+                font-size: 11px;
+                font-weight: 800;
+                color: #475569;
+                background: #f1f5f9;
+                padding: 4px 12px;
+                border-radius: 20px;
+                border: 1px solid #e2e8f0;
+                text-transform: uppercase;
+              "
+              >0 sekolah selesai</span
+            >
+          </div>
+          <div class="progress-container" style="margin-top: 15px">
+            <div id="progressBarDone" class="progress-done"></div>
+            <div id="progressBarReady" class="progress-ready"></div>
+          </div>
+          <div class="progress-legend">
+            <div class="legend-item">
+              <span class="dot" style="background: var(--success)"></span>
+              Terdistribusi
             </div>
-        </nav>
+            <div class="legend-item">
+              <span class="dot" style="background: var(--primary)"></span>
+              Tersedia
+            </div>
+            <div id="progressPercent">0%</div>
+          </div>
+        </div>
 
-        <div class="container">
-            <section id="dashboard" class="page active">
-                <div class="card">
-                    <div class="stat-row">
-                        <div class="stat-item">
-                            <span class="label">Total Penerima</span
-                            ><span id="targetView" class="value">0</span>
-                        </div>
-                        <div class="divider-v"></div>
-                        <div class="stat-item">
-                            <span class="label">Terdistribusi</span
-                            ><span
-                                id="terdistribusiView"
-                                class="value"
-                                style="color: var(--success)"
-                                >0</span
-                            >
-                        </div>
-                    </div>
-                    <div style="text-align: center; margin-top: 12px">
-                        <span
-                            id="sekolahDoneCount"
-                            style="
-                                font-size: 11px;
-                                font-weight: 800;
-                                color: #475569;
-                                background: #f1f5f9;
-                                padding: 4px 12px;
-                                border-radius: 20px;
-                                border: 1px solid #e2e8f0;
-                                text-transform: uppercase;
-                            "
-                            >0 sekolah selesai</span
-                        >
-                    </div>
-                    <div class="progress-container" style="margin-top: 15px">
-                        <div id="progressBarDone" class="progress-done"></div>
-                        <div id="progressBarReady" class="progress-ready"></div>
-                    </div>
-                    <div class="progress-legend">
-                        <div class="legend-item">
-                            <span
-                                class="dot"
-                                style="background: var(--success)"
-                            ></span>
-                            Terdistribusi
-                        </div>
-                        <div class="legend-item">
-                            <span
-                                class="dot"
-                                style="background: var(--primary)"
-                            ></span>
-                            Tersedia
-                        </div>
-                        <div id="progressPercent">0%</div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="stat-row">
-                        <div class="stat-item">
-                            <span class="label">PK (Kirim/Total)</span>
-                            <div
-                                style="
-                                    display: flex;
-                                    align-items: baseline;
-                                    justify-content: center;
-                                    gap: 4px;
-                                "
-                            >
-                                <span
-                                    id="pkDoneView"
-                                    class="value"
-                                    style="
-                                        color: var(--success);
-                                        font-size: 18px;
-                                    "
-                                    >0</span
-                                >
-                                <span style="color: #cbd5e1; font-weight: 800"
-                                    >/</span
-                                >
-                                <span
-                                    id="totalPKView"
-                                    class="value"
-                                    style="color: #ef4444; font-size: 18px"
-                                    >0</span
-                                >
-                            </div>
-                            <div
-                                style="
-                                    margin-top: 10px;
-                                    background: #fef2f2;
-                                    padding: 8px 4px;
-                                    border-radius: 6px;
-                                    border: 1px solid #fee2e2;
-                                "
-                            >
-                                <div
-                                    style="
-                                        font-size: 9px;
-                                        font-weight: 800;
-                                        color: #b91c1c;
-                                    "
-                                >
-                                    SISA PK
-                                </div>
-                                <div
-                                    style="
-                                        display: flex;
-                                        flex-direction: column;
-                                        align-items: center;
-                                        gap: 2px;
-                                    "
-                                >
-                                    <span
-                                        id="pkSisaView"
-                                        style="
-                                            font-size: 18px;
-                                            font-weight: 900;
-                                            color: #ef4444;
-                                        "
-                                        >0</span
-                                    >
-                                    <span
-                                        id="pkDetailIkat"
-                                        style="
-                                            font-size: 10px;
-                                            font-weight: 700;
-                                            color: #b91c1c;
-                                        "
-                                        >0 iket + 0</span
-                                    >
-                                </div>
-                            </div>
-                        </div>
-                        <div class="divider-v"></div>
-                        <div class="stat-item">
-                            <span class="label">PB (Kirim/Total)</span>
-                            <div
-                                style="
-                                    display: flex;
-                                    align-items: baseline;
-                                    justify-content: center;
-                                    gap: 4px;
-                                "
-                            >
-                                <span
-                                    id="pbDoneView"
-                                    class="value"
-                                    style="
-                                        color: var(--success);
-                                        font-size: 18px;
-                                    "
-                                    >0</span
-                                >
-                                <span style="color: #cbd5e1; font-weight: 800"
-                                    >/</span
-                                >
-                                <span
-                                    id="totalPBView"
-                                    class="value"
-                                    style="color: #0284c7; font-size: 18px"
-                                    >0</span
-                                >
-                            </div>
-                            <div
-                                style="
-                                    margin-top: 10px;
-                                    background: #f0f9ff;
-                                    padding: 8px 4px;
-                                    border-radius: 6px;
-                                    border: 1px solid #e0f2fe;
-                                "
-                            >
-                                <div
-                                    style="
-                                        font-size: 9px;
-                                        font-weight: 800;
-                                        color: #0369a1;
-                                    "
-                                >
-                                    SISA PB
-                                </div>
-                                <div
-                                    style="
-                                        display: flex;
-                                        flex-direction: column;
-                                        align-items: center;
-                                        gap: 2px;
-                                    "
-                                >
-                                    <span
-                                        id="pbSisaView"
-                                        style="
-                                            font-size: 18px;
-                                            font-weight: 900;
-                                            color: #0284c7;
-                                        "
-                                        >0</span
-                                    >
-                                    <span
-                                        id="pbDetailIkat"
-                                        style="
-                                            font-size: 10px;
-                                            font-weight: 700;
-                                            color: #0369a1;
-                                        "
-                                        >0 iket + 0</span
-                                    >
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="stat-row">
-                        <div class="stat-item">
-                            <span class="label">Belum Terdistribusi</span
-                            ><span id="sisaTarget" class="value-dark">0</span>
-                        </div>
-                        <div class="divider-v"></div>
-                        <div class="stat-item">
-                            <span class="label">Tersedia</span>
-                            <input
-                                type="number"
-                                id="readyInput"
-                                oninput="update()"
-                                placeholder="0"
-                            />
-                        </div>
-                    </div>
-                    <div class="divider-h"></div>
-                    <div style="text-align: center">
-                        <span class="label">Kurang</span><br /><span
-                            id="sisaReady"
-                            class="value-red"
-                            style="font-size: 32px"
-                            >0</span
-                        >
-                    </div>
-                </div>
-
-                <div id="ritContainer"></div>
-            </section>
-
-            <section id="data-sekolah" class="page">
-                <div class="card">
-                    <input type="hidden" id="editIdx" value="" />
-                    <input
-                        type="text"
-                        id="nama"
-                        placeholder="NAMA SEKOLAH..."
-                        style="margin-bottom: 10px"
-                    />
-
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px">
-                        <label
-                            style="
-                                flex: 1;
-                                background: #eff6ff;
-                                padding: 10px;
-                                border-radius: 10px;
-                                text-align: center;
-                                font-size: 12px;
-                                font-weight: 800;
-                                cursor: pointer;
-                                border: 1px solid #bfdbfe;
-                            "
-                        >
-                            <input
-                                type="radio"
-                                name="mobil"
-                                value="Mobil 1"
-                                checked
-                            />
-                            Mobil 1
-                        </label>
-                        <label
-                            style="
-                                flex: 1;
-                                background: #fff7ed;
-                                padding: 10px;
-                                border-radius: 10px;
-                                text-align: center;
-                                font-size: 12px;
-                                font-weight: 800;
-                                cursor: pointer;
-                                border: 1px solid #fed7aa;
-                            "
-                        >
-                            <input type="radio" name="mobil" value="Mobil 2" />
-                            Mobil 2
-                        </label>
-                    </div>
-
-                    <div class="label" style="margin-bottom: 5px;">Urutan Pengiriman</div>
-                    <div class="rit-selector-grid">
-                        <label class="rit-select-box"><input type="radio" name="ritSelect" value="Rit 1" checked /> <span>1</span></label>
-                        <label class="rit-select-box"><input type="radio" name="ritSelect" value="Rit 2" /> <span>2</span></label>
-                        <label class="rit-select-box"><input type="radio" name="ritSelect" value="Rit 3" /> <span>3</span></label>
-                        <label class="rit-select-box"><input type="radio" name="ritSelect" value="Rit 4" /> <span>4</span></label>
-                    </div>
-
-                    <div class="category-container" style="margin-top: 10px;">
-                        <label class="category-box">
-                            <input type="radio" name="inputMode" value="ikat" checked onchange="togglePlaceholder()">
-                            <span>Mode Ikat (x5)</span>
-                        </label>
-                        <label class="category-box">
-                            <input type="radio" name="inputMode" value="porsi" onchange="togglePlaceholder()">
-                            <span>Porsi Langsung</span>
-                        </label>
-                    </div>
-                    
-                    <div class="dual-input">
-                        <input type="number" id="pk_i" placeholder="PK (Ikat)" /><span class="plus-sign">+</span><input type="number" id="pk_s" placeholder="S" />
-                    </div>
-                    <div class="dual-input">
-                        <input type="number" id="pb_i" placeholder="PB (Ikat)" /><span class="plus-sign">+</span><input type="number" id="pb_s" placeholder="S" />
-                    </div>
-                    <div class="dual-input" id="row_tendik">
-                        <input type="number" id="tendik_i" placeholder="Tendik (Ikat)" /><span class="plus-sign">+</span><input type="number" id="tendik_s" placeholder="S" />
-                    </div>
-
-                    <button id="btnSimpan" class="btn-primary-v2" onclick="tambah()">
-                        SIMPAN DATA
-                    </button>
-                </div>
-
-                <div style="display: flex; gap: 5px; margin-bottom: 10px">
-                    <button
-                        onclick="filterMobil('Semua')"
-                        class="filter-btn active"
-                    >
-                        Semua
-                    </button>
-                    <button
-                        onclick="filterMobil('Mobil 1')"
-                        class="filter-btn"
-                        style="background: #bfdbfe; color: #1e40af"
-                    >
-                        Mobil 1
-                    </button>
-                    <button
-                        onclick="filterMobil('Mobil 2')"
-                        class="filter-btn"
-                        style="background: #fed7aa; color: #9a3412"
-                    >
-                        Mobil 2
-                    </button>
-                </div>
-
-                <div class="search-container">
-                    <input
-                        type="text"
-                        id="searchInput"
-                        placeholder="Cari sekolah..."
-                        onkeyup="render()"
-                    />
-                </div>
-                <div id="listActive"></div>
-            </section>
-
-            <section id="historis" class="page">
-                <div
-                    style="
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin-bottom: 15px;
-                        padding: 0 5px;
-                    "
+        <div class="card">
+          <div class="stat-row">
+            <div class="stat-item">
+              <span class="label">PK (Kirim/Total)</span>
+              <div
+                style="
+                  display: flex;
+                  align-items: baseline;
+                  justify-content: center;
+                  gap: 4px;
+                "
+              >
+                <span
+                  id="pkDoneView"
+                  class="value"
+                  style="color: var(--success); font-size: 18px"
+                  >0</span
                 >
-                    <h3 style="margin: 0; font-weight: 800; color: #1e293b">
-                        RIWAYAT
-                    </h3>
-                    <button class="btn-clear" onclick="confirmClearHistory()">
-                        Hapus Semua
-                    </button>
+                <span style="color: #cbd5e1; font-weight: 800">/</span>
+                <span
+                  id="totalPKView"
+                  class="value"
+                  style="color: #ef4444; font-size: 18px"
+                  >0</span
+                >
+              </div>
+              <div
+                style="
+                  margin-top: 10px;
+                  background: #fef2f2;
+                  padding: 8px 4px;
+                  border-radius: 6px;
+                  border: 1px solid #fee2e2;
+                "
+              >
+                <div style="font-size: 9px; font-weight: 800; color: #b91c1c">
+                  SISA PK
                 </div>
-                <div id="listHistory"></div>
-            </section>
-        </div>
-
-        <div id="customModal" class="modal-overlay">
-            <div class="modal-box">
-                <div id="modalIcon" class="modal-icon">⚠️</div>
-                <h3 id="modalTitle">Konfirmasi</h3>
-                <p id="modalMessage">Apakah Anda yakin?</p>
-                <div class="modal-buttons">
-                    <button class="btn-modal-batal" onclick="closeModal()">
-                        BATAL
-                    </button>
-                    <button class="btn-modal-oke" id="modalConfirmBtn">
-                        OKE
-                    </button>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 2px;
+                  "
+                >
+                  <span
+                    id="pkSisaView"
+                    style="font-size: 18px; font-weight: 900; color: #ef4444"
+                    >0</span
+                  >
+                  <span
+                    id="pkDetailIkat"
+                    style="font-size: 10px; font-weight: 700; color: #b91c1c"
+                    >0 iket + 0</span
+                  >
                 </div>
+              </div>
             </div>
+            <div class="divider-v"></div>
+            <div class="stat-item">
+              <span class="label">PB (Kirim/Total)</span>
+              <div
+                style="
+                  display: flex;
+                  align-items: baseline;
+                  justify-content: center;
+                  gap: 4px;
+                "
+              >
+                <span
+                  id="pbDoneView"
+                  class="value"
+                  style="color: var(--success); font-size: 18px"
+                  >0</span
+                >
+                <span style="color: #cbd5e1; font-weight: 800">/</span>
+                <span
+                  id="totalPBView"
+                  class="value"
+                  style="color: #0284c7; font-size: 18px"
+                  >0</span
+                >
+              </div>
+              <div
+                style="
+                  margin-top: 10px;
+                  background: #f0f9ff;
+                  padding: 8px 4px;
+                  border-radius: 6px;
+                  border: 1px solid #e0f2fe;
+                "
+              >
+                <div style="font-size: 9px; font-weight: 800; color: #0369a1">
+                  SISA PB
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 2px;
+                  "
+                >
+                  <span
+                    id="pbSisaView"
+                    style="font-size: 18px; font-weight: 900; color: #0284c7"
+                    >0</span
+                  >
+                  <span
+                    id="pbDetailIkat"
+                    style="font-size: 10px; font-weight: 700; color: #0369a1"
+                    >0 iket + 0</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div id="snackbar" class="snackbar">
-            <span>Data berhasil dihapus</span>
-            <button class="btn-undo" onclick="undoAction()">
-                BATAL (UNDO)
-            </button>
-        </div>
-<div id="editSekolahModal" class="modal-overlay">
-    <div class="modal-box" style="max-width: 420px; text-align: left; padding: 18px;">
-        <h3 style="margin-top: 0; margin-bottom: 15px; text-align: center; color: var(--dark); font-weight: 800;">EDIT DATA SEKOLAH</h3>
-        
-        <input type="hidden" id="modalEditIdx" value="" />
-        
-        <div class="label" style="margin-bottom: 4px;">Nama Sekolah</div>
-        <input type="text" id="modalNama" placeholder="NAMA SEKOLAH..." style="margin-bottom: 12px; text-transform: uppercase;" />
-
-        <div class="label" style="margin-bottom: 4px;">Mobil Pengiriman</div>
-        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-            <label style="flex: 1; background: #eff6ff; padding: 10px; border-radius: 10px; text-align: center; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #bfdbfe;">
-                <input type="radio" name="modalMobil" value="Mobil 1" /> Mobil 1
-            </label>
-            <label style="flex: 1; background: #fff7ed; padding: 10px; border-radius: 10px; text-align: center; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #fed7aa;">
-                <input type="radio" name="modalMobil" value="Mobil 2" /> Mobil 2
-            </label>
-        </div>
-
-        <div class="label" style="margin-bottom: 4px;">Kelompok Rit</div>
-        <div class="rit-selector-grid" style="margin-bottom: 12px;">
-            <label class="rit-select-box"><input type="radio" name="modalRitSelect" value="Rit 1" /> <span>1</span></label>
-            <label class="rit-select-box"><input type="radio" name="modalRitSelect" value="Rit 2" /> <span>2</span></label>
-            <label class="rit-select-box"><input type="radio" name="modalRitSelect" value="Rit 3" /> <span>3</span></label>
-            <label class="rit-select-box"><input type="radio" name="modalRitSelect" value="Rit 4" /> <span>4</span></label>
+        <div class="card">
+          <div class="stat-row">
+            <div class="stat-item">
+              <span class="label">Belum Terdistribusi</span
+              ><span id="sisaTarget" class="value-dark">0</span>
+            </div>
+            <div class="divider-v"></div>
+            <div class="stat-item">
+              <span class="label">Tersedia</span>
+              <input
+                type="number"
+                id="readyInput"
+                oninput="update()"
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <div class="divider-h"></div>
+          <div style="text-align: center">
+            <span class="label">Kurang</span><br /><span
+              id="sisaReady"
+              class="value-red"
+              style="font-size: 32px"
+              >0</span
+            >
+          </div>
         </div>
 
-        <div class="label" style="margin-bottom: 4px;">Status Pengiriman</div>
-        <div style="display: flex; gap: 6px; margin-bottom: 12px; width: 100%;">
-            <label class="rit-select-box" style="padding: 6px 2px;"><input type="radio" name="modalStatus" value="pending" /> <span>PENDING</span></label>
-            <label class="rit-select-box" style="padding: 6px 2px;"><input type="radio" name="modalStatus" value="done" /> <span>DONE</span></label>
-            <label class="rit-select-box" style="padding: 6px 2px;"><input type="radio" name="modalStatus" value="holiday" /> <span>HOLIDAY</span></label>
+        <div
+          class="search-container"
+          style="margin-top: 15px; margin-bottom: 5px"
+        >
+          <input
+            type="text"
+            id="dashSearchInput"
+            placeholder="Cari sekolah..."
+            onkeyup="update()"
+            style="background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02)"
+          />
         </div>
 
-               <div class="label" style="margin-bottom: 4px;">Ubah Data Logistik</div>
-        
-        <div class="category-container" style="margin-top: 5px; margin-bottom: 10px; padding: 0;">
-            <label class="category-box">
-                <input type="radio" name="modalInputMode" value="ikat" checked onchange="toggleModalPlaceholder()">
-                <span>Mode Ikat (x5)</span>
-            </label>
-            <label class="category-box">
-                <input type="radio" name="modalInputMode" value="porsi" onchange="toggleModalPlaceholder()">
-                <span>Porsi Langsung</span>
-            </label>
+        <div id="ritContainer"></div>
+
+        <div id="ritContainer"></div>
+      </section>
+
+      <section id="data-sekolah" class="page">
+        <!-- FILTER TINGKAT LANJUT (CUSTOM DROPDOWN) -->
+        <div style="display: flex; gap: 8px; margin-bottom: 10px">
+          <!-- Dropdown Mobil -->
+          <div class="custom-dropdown">
+            <input type="hidden" id="filterMobilSel" value="Semua" />
+            <div class="dropdown-header" onclick="toggleDropdown(this)">
+              <span class="dd-label">🚗 Semua Mobil</span>
+              <span style="font-size: 8px; opacity: 0.5">▼</span>
+            </div>
+            <div class="dropdown-list">
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'Semua', '🚗 Semua Mobil')"
+              >
+                🚗 Semua Mobil
+              </div>
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'Mobil 1', 'Mobil 1')"
+              >
+                Mobil 1
+              </div>
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'Mobil 2', 'Mobil 2')"
+              >
+                Mobil 2
+              </div>
+            </div>
+          </div>
+
+          <!-- Dropdown Rit -->
+          <div class="custom-dropdown">
+            <input type="hidden" id="filterRitSel" value="Semua" />
+            <div class="dropdown-header" onclick="toggleDropdown(this)">
+              <span class="dd-label">🚚 Semua Rit</span>
+              <span style="font-size: 8px; opacity: 0.5">▼</span>
+            </div>
+            <div class="dropdown-list">
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'Semua', '🚚 Semua Rit')"
+              >
+                🚚 Semua Rit
+              </div>
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'Rit 1', 'Rit 1')"
+              >
+                Rit 1
+              </div>
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'Rit 2', 'Rit 2')"
+              >
+                Rit 2
+              </div>
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'Rit 3', 'Rit 3')"
+              >
+                Rit 3
+              </div>
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'Rit 4', 'Rit 4')"
+              >
+                Rit 4
+              </div>
+            </div>
+          </div>
+
+          <!-- Dropdown Status -->
+          <div class="custom-dropdown">
+            <input type="hidden" id="filterStatusSel" value="Semua" />
+            <div class="dropdown-header" onclick="toggleDropdown(this)">
+              <span class="dd-label">📌 Semua Status</span>
+              <span style="font-size: 8px; opacity: 0.5">▼</span>
+            </div>
+            <div class="dropdown-list">
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'Semua', '📌 Semua Status')"
+              >
+                📌 Semua Status
+              </div>
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'pending', 'Pending')"
+              >
+                Pending
+              </div>
+              <div
+                class="dropdown-item"
+                onclick="setDropdownValue(this, 'done', 'Selesai')"
+              >
+                Selesai
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="dual-input" style="margin-top: 0; margin-bottom: 6px;">
-            <input type="number" id="modalPk_i" placeholder="PK (Ikat)" /><span class="modal-plus-sign plus-sign">+</span><input type="number" id="modalPk_s" placeholder="S" />
+        <div class="search-container">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Cari sekolah..."
+            onkeyup="render()"
+          />
         </div>
-        <div class="dual-input" style="margin-top: 0; margin-bottom: 12px;">
-            <input type="number" id="modalPb_i" placeholder="PB (Ikat)" /><span class="modal-plus-sign plus-sign">+</span><input type="number" id="modalPb_s" placeholder="S" />
-        </div>
+        <div id="listActive"></div>
+      </section>
 
-
-        <div class="modal-buttons" style="margin-top: 15px;">
-            <button class="btn-modal-batal" onclick="closeEditModal()">BATAL</button>
-            <button class="btn-modal-oke" style="background-color: var(--success);" onclick="simpanPerubahanModal()">PERBARUI</button>
+      <section id="historis" class="page">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 0 5px;
+          "
+        >
+          <h3 style="margin: 0; font-weight: 800; color: #1e293b">RIWAYAT</h3>
+          <button class="btn-clear" onclick="confirmClearHistory()">
+            Hapus Semua
+          </button>
         </div>
+        <div id="listHistory"></div>
+      </section>
     </div>
-</div>
 
-<div id="infoModal" class="modal-overlay" onclick="closeInfoModal()">
-    <div class="modal-box" style="max-width: 320px; text-align: left; position: relative;" onclick="event.stopPropagation()">
+    <div id="customModal" class="modal-overlay">
+      <div class="modal-box">
+        <div id="modalIcon" class="modal-icon">⚠️</div>
+        <h3 id="modalTitle">Konfirmasi</h3>
+        <p id="modalMessage">Apakah Anda yakin?</p>
+        <div class="modal-buttons">
+          <button class="btn-modal-batal" onclick="closeModal()">BATAL</button>
+          <button class="btn-modal-oke" id="modalConfirmBtn">OKE</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="snackbar" class="snackbar">
+      <span>Data berhasil dihapus</span>
+      <button class="btn-undo" onclick="undoAction()">BATAL (UNDO)</button>
+    </div>
+    <div id="editSekolahModal" class="modal-overlay">
+      <div
+        class="modal-box"
+        style="max-width: 420px; text-align: left; padding: 18px"
+      >
+        <h3
+          style="
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
+            color: var(--dark);
+            font-weight: 800;
+          "
+        >
+          EDIT DATA SEKOLAH
+        </h3>
+
+        <input type="hidden" id="modalEditIdx" value="" />
+
+        <div class="label" style="margin-bottom: 4px">Nama Sekolah</div>
+        <input
+          type="text"
+          id="modalNama"
+          placeholder="NAMA SEKOLAH..."
+          style="margin-bottom: 12px; text-transform: uppercase"
+        />
+
+        <div class="label" style="margin-bottom: 4px">Mobil Pengiriman</div>
+        <div style="display: flex; gap: 10px; margin-bottom: 12px">
+          <label
+            style="
+              flex: 1;
+              background: #eff6ff;
+              padding: 10px;
+              border-radius: 10px;
+              text-align: center;
+              font-size: 12px;
+              font-weight: 800;
+              cursor: pointer;
+              border: 1px solid #bfdbfe;
+            "
+          >
+            <input type="radio" name="modalMobil" value="Mobil 1" />
+            Mobil 1
+          </label>
+          <label
+            style="
+              flex: 1;
+              background: #fff7ed;
+              padding: 10px;
+              border-radius: 10px;
+              text-align: center;
+              font-size: 12px;
+              font-weight: 800;
+              cursor: pointer;
+              border: 1px solid #fed7aa;
+            "
+          >
+            <input type="radio" name="modalMobil" value="Mobil 2" />
+            Mobil 2
+          </label>
+        </div>
+
+        <div class="label" style="margin-bottom: 4px">Kelompok Rit</div>
+        <div class="rit-selector-grid" style="margin-bottom: 12px">
+          <label class="rit-select-box"
+            ><input type="radio" name="modalRitSelect" value="Rit 1" />
+            <span>1</span></label
+          >
+          <label class="rit-select-box"
+            ><input type="radio" name="modalRitSelect" value="Rit 2" />
+            <span>2</span></label
+          >
+          <label class="rit-select-box"
+            ><input type="radio" name="modalRitSelect" value="Rit 3" />
+            <span>3</span></label
+          >
+          <label class="rit-select-box"
+            ><input type="radio" name="modalRitSelect" value="Rit 4" />
+            <span>4</span></label
+          >
+        </div>
+
+        <div class="label" style="margin-bottom: 4px">Status Pengiriman</div>
+        <div style="display: flex; gap: 6px; margin-bottom: 12px; width: 100%">
+          <label class="rit-select-box" style="padding: 6px 2px"
+            ><input type="radio" name="modalStatus" value="pending" />
+            <span>PENDING</span></label
+          >
+          <label class="rit-select-box" style="padding: 6px 2px"
+            ><input type="radio" name="modalStatus" value="done" />
+            <span>DONE</span></label
+          >
+          <label class="rit-select-box" style="padding: 6px 2px"
+            ><input type="radio" name="modalStatus" value="holiday" />
+            <span>HOLIDAY</span></label
+          >
+        </div>
+
+        <div class="label" style="margin-bottom: 4px">Ubah Data Logistik</div>
+
+        <div
+          class="category-container"
+          style="margin-top: 5px; margin-bottom: 10px; padding: 0"
+        >
+          <label class="category-box">
+            <input
+              type="radio"
+              name="modalInputMode"
+              value="ikat"
+              checked
+              onchange="toggleModalPlaceholder()"
+            />
+            <span>Mode Ikat (x5)</span>
+          </label>
+          <label class="category-box">
+            <input
+              type="radio"
+              name="modalInputMode"
+              value="porsi"
+              onchange="toggleModalPlaceholder()"
+            />
+            <span>Porsi Langsung</span>
+          </label>
+        </div>
+
+        <div class="dual-input" style="margin-top: 0; margin-bottom: 6px">
+          <input type="number" id="modalPk_i" placeholder="PK (Ikat)" /><span
+            class="modal-plus-sign plus-sign"
+            >+</span
+          ><input type="number" id="modalPk_s" placeholder="S" />
+        </div>
+        <div class="dual-input" style="margin-top: 0; margin-bottom: 12px">
+          <input type="number" id="modalPb_i" placeholder="PB (Ikat)" /><span
+            class="modal-plus-sign plus-sign"
+            >+</span
+          ><input type="number" id="modalPb_s" placeholder="S" />
+        </div>
+
+        <div class="modal-buttons" style="margin-top: 15px">
+          <button class="btn-modal-batal" onclick="closeEditModal()">
+            BATAL
+          </button>
+          <button
+            class="btn-modal-oke"
+            style="background-color: var(--success)"
+            onclick="simpanPerubahanModal()"
+          >
+            PERBARUI
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="infoModal" class="modal-overlay" onclick="closeInfoModal()">
+      <div
+        class="modal-box"
+        style="max-width: 320px; text-align: left; position: relative"
+        onclick="event.stopPropagation()"
+      >
         <!-- Ikon X -->
         <span class="close-icon" onclick="closeInfoModal()">&times;</span>
-        
-        <h3 id="infoModalTitle" style="text-align: center; color: var(--primary); margin-top: 0;"></h3>
-        <div id="infoModalContent" style="margin: 15px 0; font-size: 14px; line-height: 1.8;">
-            <!-- Data akan diisi via JS -->
+
+        <h3
+          id="infoModalTitle"
+          style="text-align: center; color: var(--primary); margin-top: 0"
+        ></h3>
+        <div
+          id="infoModalContent"
+          style="margin: 15px 0; font-size: 14px; line-height: 1.8"
+        >
+          <!-- Data akan diisi via JS -->
         </div>
+      </div>
     </div>
-</div>
+    <!-- TOMBOL PLUS MENGAMBANG (FAB) -->
+    <button class="fab-add" onclick="openTambahModal()">+</button>
 
+    <!-- MODAL TAMBAH SEKOLAH -->
+    <div id="tambahModal" class="modal-overlay">
+      <div
+        class="modal-box"
+        style="
+          max-width: 420px;
+          text-align: left;
+          padding: 18px;
+          position: relative;
+        "
+      >
+        <!-- Ikon X untuk tutup -->
+        <span class="close-icon" onclick="closeTambahModal()">&times;</span>
 
+        <h3
+          style="
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
+            color: var(--dark);
+            font-weight: 800;
+          "
+        >
+          TAMBAH SEKOLAH
+        </h3>
 
-        <script src="app.js"></script>
-    </body>
+        <input type="hidden" id="editIdx" value="" />
+        <input
+          type="text"
+          id="nama"
+          placeholder="NAMA SEKOLAH..."
+          style="margin-bottom: 10px; text-transform: uppercase"
+        />
+
+        <div style="display: flex; gap: 10px; margin-bottom: 10px">
+          <label
+            style="
+              flex: 1;
+              background: #eff6ff;
+              padding: 10px;
+              border-radius: 10px;
+              text-align: center;
+              font-size: 12px;
+              font-weight: 800;
+              cursor: pointer;
+              border: 1px solid #bfdbfe;
+            "
+          >
+            <input type="radio" name="mobil" value="Mobil 1" checked /> Mobil 1
+          </label>
+          <label
+            style="
+              flex: 1;
+              background: #fff7ed;
+              padding: 10px;
+              border-radius: 10px;
+              text-align: center;
+              font-size: 12px;
+              font-weight: 800;
+              cursor: pointer;
+              border: 1px solid #fed7aa;
+            "
+          >
+            <input type="radio" name="mobil" value="Mobil 2" /> Mobil 2
+          </label>
+        </div>
+
+        <div class="label" style="margin-bottom: 5px">Urutan Pengiriman</div>
+        <div class="rit-selector-grid">
+          <label class="rit-select-box"
+            ><input type="radio" name="ritSelect" value="Rit 1" checked /><span
+              >1</span
+            ></label
+          >
+          <label class="rit-select-box"
+            ><input type="radio" name="ritSelect" value="Rit 2" /><span
+              >2</span
+            ></label
+          >
+          <label class="rit-select-box"
+            ><input type="radio" name="ritSelect" value="Rit 3" /><span
+              >3</span
+            ></label
+          >
+          <label class="rit-select-box"
+            ><input type="radio" name="ritSelect" value="Rit 4" /><span
+              >4</span
+            ></label
+          >
+        </div>
+
+        <div class="category-container" style="margin-top: 10px">
+          <label class="category-box">
+            <input
+              type="radio"
+              name="inputMode"
+              value="ikat"
+              checked
+              onchange="togglePlaceholder()"
+            />
+            <span>Mode Ikat (x5)</span>
+          </label>
+          <label class="category-box">
+            <input
+              type="radio"
+              name="inputMode"
+              value="porsi"
+              onchange="togglePlaceholder()"
+            />
+            <span>Porsi Langsung</span>
+          </label>
+        </div>
+
+        <div class="dual-input">
+          <input type="number" id="pk_i" placeholder="PK (Ikat)" /><span
+            class="plus-sign"
+            >+</span
+          ><input type="number" id="pk_s" placeholder="S" />
+        </div>
+        <div class="dual-input">
+          <input type="number" id="pb_i" placeholder="PB (Ikat)" /><span
+            class="plus-sign"
+            >+</span
+          ><input type="number" id="pb_s" placeholder="S" />
+        </div>
+        <div class="dual-input" id="row_tendik">
+          <input type="number" id="tendik_i" placeholder="Tendik (Ikat)" /><span
+            class="plus-sign"
+            >+</span
+          ><input type="number" id="tendik_s" placeholder="S" />
+        </div>
+
+        <button
+          id="btnSimpan"
+          class="btn-primary-v2"
+          onclick="tambah()"
+          style="margin-top: 15px"
+        >
+          SIMPAN DATA
+        </button>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
 </html>
-
