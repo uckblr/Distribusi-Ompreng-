@@ -457,9 +457,6 @@ function render() {
 /* =========================================
    ACTIONS (TAMBAH & EDIT DATA)
    ========================================= */
-/* =========================================
-   ACTIONS (TAMBAH & EDIT DATA)
-   ========================================= */
 
 // --- 1. Fungsi Buka/Tutup Modal Tambah (Baru) ---
 function openTambahModal() {
@@ -534,7 +531,7 @@ function tambah() {
     data.unshift(payload);
   }
 
-  // BUG FIX: Saya tambahkan "tendik_s" ke dalam daftar reset form ini
+  // BUG FIX: tambahkan "tendik_s" ke dalam daftar reset form ini
   ["nama", "pk_i", "pk_s", "pb_i", "pb_s", "tendik_i", "tendik_s"].forEach(
     (id) => {
       const el = document.getElementById(id);
