@@ -416,10 +416,13 @@
       <span>Data berhasil dihapus</span>
       <button class="btn-undo" onclick="undoAction()">BATAL (UNDO)</button>
     </div>
-    <div id="editSekolahModal" class="modal-overlay">
+
+    <!-- MODAL EDIT SEKOLAH -->
+    <div id="editSekolahModal" class="modal-overlay" onclick="closeEditModal()">
       <div
         class="modal-box"
         style="max-width: 420px; text-align: left; padding: 18px"
+        onclick="event.stopPropagation()"
       >
         <h3
           style="
@@ -569,6 +572,7 @@
         </div>
       </div>
     </div>
+    <!-- Perbaikan Tag Penutup -->
 
     <div id="infoModal" class="modal-overlay" onclick="closeInfoModal()">
       <div
@@ -591,11 +595,12 @@
         </div>
       </div>
     </div>
-    <!-- TOMBOL PLUS MENGAMBANG (FAB) -->
+
+    <!-- TOMBOL PLUS MENGAMBANG (FAB) KINI AMAN DI LUAR -->
     <button class="fab-add" onclick="openTambahModal()">+</button>
 
     <!-- MODAL TAMBAH SEKOLAH -->
-    <div id="tambahModal" class="modal-overlay">
+    <div id="tambahModal" class="modal-overlay" onclick="closeTambahModal()">
       <div
         class="modal-box"
         style="
@@ -604,6 +609,7 @@
           padding: 18px;
           position: relative;
         "
+        onclick="event.stopPropagation()"
       >
         <!-- Ikon X untuk tutup -->
         <span class="close-icon" onclick="closeTambahModal()">&times;</span>
@@ -736,6 +742,7 @@
         </button>
       </div>
     </div>
+    <!-- Perbaikan Tag Penutup -->
 
     <script src="app.js"></script>
   </body>
