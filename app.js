@@ -63,6 +63,41 @@ function confirmRitDone(ritName) {
     },
   );
 }
+/* =========================================
+   HELPER BARU: HITUNG IKAT & DERETKAN SISA
+   ========================================= */
+function formatDetailPorsi(listData, tipe) {
+  let ikatTerkumpul = 0;
+  let deretSisa = [];
+
+  listData.forEach((d) => {
+    // Hitung total porsi untuk 1 sekolah ini
+    let porsi =
+      tipe === "PK"
+        ? hitung(d.pk_val.i, d.pk_val.s)
+        : hitung(d.pb_val.i, d.pb_val.s);
+
+    // Ambil jumlah Ikat murni dari sekolah ini
+    ikatTerkumpul += Math.floor(porsi / 5);
+
+    // Ambil sisa eceran. Jika ada, jejerkan
+    let sisa = porsi % 5;
+    if (sisa > 0) {
+      deretSisa.push(sisa);
+    }
+  });
+
+  // LOGIKA BARU: Angka utama murni dari jumlah ikat dikali 5
+  let totalPorsiIkat = ikatTerkumpul * 5;
+
+  // Gabungkan teksnya jadi format: "55 iket + 1 + 3 + 1"
+  let teksDetail = `${ikatTerkumpul} iket`;
+  if (deretSisa.length > 0) {
+    teksDetail += ` + ${deretSisa.join(" + ")}`;
+  }
+
+  return { totalPorsiIkat, teksDetail };
+}
 
 /* =========================================
    CORE LOGIC (UPDATE DASHBOARD & RIT GROUPING)
@@ -87,58 +122,32 @@ function update() {
   let pbTot = aktif.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
   let pbDone = done.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
 
-  let sisaPK = pkTot - pkDone;
-  let sisaPB = pbTot - pbDone;
-
-  const getSumEceran = (list, tipe) => {
-    return list.reduce(
-      (sum, d) =>
-        sum + (parseInt(tipe === "PK" ? d.pk_val.s : d.pb_val.s) || 0),
-      0,
-    );
-  };
-
-  const getDeretSisa = (list, tipe) => {
-    let listSisa = list
-      .map((d) => parseInt(tipe === "PK" ? d.pk_val.s : d.pb_val.s) || 0)
-      .filter((s) => s > 0);
-    return listSisa.length > 0 ? " +" + listSisa.join("+") : "";
-  };
-
   setTxt("targetView", targetTotal);
   setTxt("terdistribusiView", kirimTotal);
   setTxt("sisaTarget", Math.max(0, targetTotal - kirimTotal));
 
-  let pkEceranTotal = getSumEceran(pending, "PK");
-  let pbEceranTotal = getSumEceran(pending, "PB");
-  let pkBersih = sisaPK - pkEceranTotal;
-  let pbBersih = sisaPB - pbEceranTotal;
+  // Ambil data detail PK dan PB yang sudah dipisah murni
+  let pkPending = formatDetailPorsi(pending, "PK");
+  let pbPending = formatDetailPorsi(pending, "PB");
 
   setTxt("totalPKView", pkTot);
   setTxt("pkDoneView", pkDone);
-  setTxt("pkSisaView", sisaPK);
-
-  let deretPkAtas = getDeretSisa(pending, "PK").trim();
-  setTxt(
-    "pkDetailIkat",
-    deretPkAtas ? `${pkBersih} (${deretPkAtas})` : `${pkBersih}`,
-  );
+  // Gunakan angka porsi ikat murni (tidak dicampur sisa)
+  setTxt("pkSisaView", pkPending.totalPorsiIkat);
+  setTxt("pkDetailIkat", pkPending.teksDetail);
 
   setTxt("totalPBView", pbTot);
   setTxt("pbDoneView", pbDone);
-  setTxt("pbSisaView", sisaPB);
+  // Gunakan angka porsi ikat murni (tidak dicampur sisa)
+  setTxt("pbSisaView", pbPending.totalPorsiIkat);
+  setTxt("pbDetailIkat", pbPending.teksDetail);
 
-  let deretPbAtas = getDeretSisa(pending, "PB").trim();
-  setTxt(
-    "pbDetailIkat",
-    deretPbAtas ? `${pbBersih} (${deretPbAtas})` : `${pbBersih}`,
-  );
-
-  // LOGIKA DINAMIS PEMBAGIAN PER KELOMPOK RIT
+  // Render Breakdown Rit
   renderRitBreakdown(aktif);
 
   let pKirim = targetTotal > 0 ? (kirimTotal / targetTotal) * 100 : 0;
   let pSiap = targetTotal > 0 ? (readyVal / targetTotal) * 100 : 0;
+
   if (document.getElementById("progressBarDone"))
     document.getElementById("progressBarDone").style.width = pKirim + "%";
   if (document.getElementById("progressBarReady")) {
@@ -146,13 +155,14 @@ function update() {
     document.getElementById("progressBarReady").style.width =
       Math.min(pSiap, 100 - pKirim) + "%";
   }
+
   setTxt("progressPercent", Math.round(pKirim) + "%");
 
   let kurang = targetTotal - kirimTotal - readyVal;
   const elKurang = document.getElementById("sisaReady");
   if (elKurang) {
     elKurang.innerText = kurang.toString();
-    elKurang.style.color = kurang > 0 ? "#ef4444" : "#22c55e";
+    elKurang.style.color = kurang > 0 ? "var(--danger)" : "var(--success)";
   }
 
   localStorage.setItem("ultra_v10_data", JSON.stringify(data));
@@ -161,13 +171,12 @@ function update() {
 }
 
 /* =========================================
-   LOGIKA BARU: RENDER BREAKDOWN PER RIT (FIXED)
+   LOGIKA BARU: RENDER BREAKDOWN PER RIT (FIXED KONSISTEN)
    ========================================= */
 function renderRitBreakdown(aktifList) {
   const container = document.getElementById("ritContainer");
   if (!container) return;
   container.innerHTML = "";
-  // Tangkap apa yang diketik di pencarian Dasbor
   const dashSearch =
     document.getElementById("dashSearchInput")?.value.toLowerCase().trim() ||
     "";
@@ -185,80 +194,53 @@ function renderRitBreakdown(aktifList) {
       (d) => d.status === "pending",
     );
 
-    // LOGIKA PINTAR: Jika semua selesai, tampilkan total asli. Jika belum, tampilkan SISA.
     let isRitSelesai = sekolahPendingRit.length === 0;
     let dataHitung = isRitSelesai ? sekolahDiRitIni : sekolahPendingRit;
 
     let totalRit = dataHitung.reduce((sum, d) => sum + d.total, 0);
 
-    let pkTotalPorsiAsli = dataHitung.reduce(
-      (sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s),
-      0,
-    );
-    let pkEceranList = dataHitung
-      .map((d) => parseInt(d.pk_val.s) || 0)
-      .filter((s) => s > 0);
-    let pkTotalEceranRit = pkEceranList.reduce((sum, s) => sum + s, 0);
-    let pkBersihRit = pkTotalPorsiAsli - pkTotalEceranRit;
-
-    let pbTotalPorsiAsli = dataHitung.reduce(
-      (sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s),
-      0,
-    );
-    let pbEceranList = dataHitung
-      .map((d) => parseInt(d.pb_val.s) || 0)
-      .filter((s) => s > 0);
-    let pbTotalEceranRit = pbEceranList.reduce((sum, s) => sum + s, 0);
-    let pbBersihRit = pbTotalPorsiAsli - pbTotalEceranRit;
-
-    let displayEceranPk =
-      pkEceranList.length > 0
-        ? `<span class="rit-summary-eceran"> + (${pkEceranList.join("+")})</span>`
-        : "";
-    let displayEceranPb =
-      pbEceranList.length > 0
-        ? `<span class="rit-summary-eceran"> + (${pbEceranList.join("+")})</span>`
-        : "";
+    // Gunakan fungsi helper agar format murni terpakai di sini juga
+    let pkRitData = formatDetailPorsi(dataHitung, "PK");
+    let pbRitData = formatDetailPorsi(dataHitung, "PB");
 
     let btnActionHTML = `
-        <button onclick="shareRitSummary('${ritName}')" style="background:#e2e8f0; border:none; border-radius:4px; padding:2px 8px; cursor:pointer; font-size:9px; font-weight:800; color:#475569;">SHARE</button>
+        <button onclick="shareRitSummary('${ritName}')" style="background:#e2e8f0; border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:#475569;">SHARE</button>
     `;
 
     if (!isRitSelesai) {
       let spinnerStyle =
         "display:inline-block; width:10px; height:10px; border:2px solid rgba(255,255,255,0.4); border-top-color:white; border-radius:50%; animation: putar 1s linear infinite;";
       btnActionHTML += `
-            <button onclick="confirmRitDone('${ritName}')" style="background: #f59e0b; border:none; border-radius:4px; padding:2px 8px; cursor:pointer; font-size:9px; font-weight:800; color:white; box-shadow: 0 2px 4px rgba(59,130,246,0.3); display:flex; align-items:center; gap:4px;">
+            <button onclick="confirmRitDone('${ritName}')" style="background: var(--warning); border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:4px;">
                 <span style="${spinnerStyle}"></span> SELESAI
             </button>
         `;
     } else {
-      btnActionHTML += `<span style="background:#d1fae5; color:#047857; border:1px solid #10b981; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; letter-spacing:0.5px;">SELESAI</span>`;
+      btnActionHTML += `<span style="background:#d1fae5; color:var(--success); border:1px solid #10b981; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:0.5px;">SELESAI</span>`;
     }
+
     let stylePK = isRitSelesai
-      ? "background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0;"
-      : "background:#fef2f2; color:#ef4444; border:1px solid #fee2e2;";
+      ? "background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0;"
+      : "background:#fef2f2; color:var(--danger); border:1px solid #fee2e2;";
     let stylePB = isRitSelesai
-      ? "background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0;"
+      ? "background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0;"
       : "background:#f0f9ff; color:#0284c7; border:1px solid #e0f2fe;";
     let cardStyle = isRitSelesai
       ? "background: #f8fafc; border: 1px solid #cbd5e1;"
-      : "background: white; border: 1px solid #e2e8f0;";
+      : "background: white; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.03);";
 
-    let listSekolahHTML = `<div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px dashed #e2e8f0; padding-top: 8px;">`;
+    let listSekolahHTML = `<div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">`;
     sekolahDiRitIni.forEach((sek) => {
       let originalIdx = data.indexOf(sek);
       let cursorStyle = "cursor: pointer; transition: all 0.3s ease;";
-
-      // CEK SOROTAN: Apakah nama sekolah cocok dengan yg dicari di Dasbor?
       let isHighlighted =
         dashSearch && sek.nama.toLowerCase().includes(dashSearch);
       let highlightClass = isHighlighted ? "highlight-school" : "";
 
       if (sek.status === "done") {
-        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 10px; background: #f8fafc; color: #94a3b8; padding: 3px 6px; border-radius: 4px; text-decoration: line-through; border: 1px solid #e2e8f0; ${cursorStyle}">${sek.nama}</span>`;
+        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; background: #f1f5f9; color: #9FA6B0; padding: 4px 8px; border-radius: 6px; text-decoration: line-through; border: 1px solid #e2e8f0; ${cursorStyle}">${sek.nama}</span>`;
       } else {
-        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 10px; font-weight: 700; background: #eff6ff; color: #1d4ed8; padding: 3px 6px; border-radius: 4px; border: 1px solid #bfdbfe; ${cursorStyle}">${sek.nama}</span>`;
+        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; font-weight: 700; background: #eff6ff; color: #1d4ed8; padding: 4px 8px; border-radius: 6px; border: 1px solid #bfdbfe; ${cursorStyle}">${sek.nama}</span>`;
       }
     });
 
@@ -266,22 +248,22 @@ function renderRitBreakdown(aktifList) {
 
     container.innerHTML += `
             <div class="rit-summary-card" style="${cardStyle}">
-                <div class="rit-summary-title">
+                <div class="rit-summary-title" style="margin-bottom: 10px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span>${ritName.toUpperCase()}</span>
+                        <span style="font-size: 14px; font-weight: 900;">${ritName.toUpperCase()}</span>
                         ${btnActionHTML}
                     </div>
-                    <span style="font-size: 13px; font-weight: 900; color: ${isRitSelesai ? "#16a34a" : "#1e293b"};">
+                    <span style="font-size: 13px; font-weight: 900; color: ${isRitSelesai ? "var(--success)" : "var(--dark)"};">
                         Total: ${totalRit}
                     </span>
                 </div>
                 <div class="rit-summary-row">
-                    <!-- Gunakan variabel stylePK dan stylePB -->
+                    <!-- Gunakan angka MURNI hasil kali 5 di luar kurung -->
                     <div class="rit-summary-item" style="${stylePK}">
-                        PK ${pkBersihRit}${displayEceranPk}
+                        PK ${pkRitData.totalPorsiIkat} <span class="rit-summary-eceran" style="opacity: 0.85;">(${pkRitData.teksDetail})</span>
                     </div>
                     <div class="rit-summary-item" style="${stylePB}">
-                        PB ${pbBersihRit}${displayEceranPb}
+                        PB ${pbRitData.totalPorsiIkat} <span class="rit-summary-eceran" style="opacity: 0.85;">(${pbRitData.teksDetail})</span>
                     </div>
                 </div>
                 ${listSekolahHTML}
