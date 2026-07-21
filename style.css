@@ -265,18 +265,18 @@ body {
    ========================================= */
 .smallbtn {
   border: none;
-  padding: 5px 8px; /* Padding fleksibel agar teks muat */
+  padding: 5px 8px;
   border-radius: 6px;
   color: white;
-  font-size: 10px; /* Ukuran font kecil tapi terbaca */
-  font-weight: 800; /* Bold agar tegas */
+  font-size: 10px;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: 0.2s;
-  min-width: 40px; /* Pastikan tombol punya lebar minimum */
+  min-width: 40px;
 }
 
 .smallbtn:active {
@@ -368,21 +368,21 @@ input:focus {
 #sisaTarget {
   font-size: 24px;
   font-weight: 900;
-  color: #ef4444; /* Warna merah tegas */
+  color: #ef4444;
   display: block;
   margin: 10px 0;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 #sisaReady {
-  font-size: 24px; /* Ukuran lebih besar dari sisaTarget */
+  font-size: 24px;
   font-weight: 900;
-  color: #ef4444; /* Agar defaultnya merah */
+  color: #ef4444;
   display: block;
   margin: 5px 0;
   line-height: 1;
   letter-spacing: -1px;
-  transition: color 0.3s ease; /* Transisi halus saat berubah jadi hijau */
+  transition: color 0.3s ease;
 }
 
 .dual-input {
@@ -396,9 +396,6 @@ input:focus {
   color: #cbd5e1;
 }
 
-/* =========================================
-   MODAL (KONFIRMASI)
-   ========================================= */
 /* =========================================
    MODAL (KONFIRMASI & FORM)
    ========================================= */
@@ -510,7 +507,7 @@ input:focus {
   position: fixed;
   z-index: 2000;
   left: 50%;
-  bottom: 100px; /* Di atas navbar */
+  bottom: 100px;
   transform: translateX(-50%);
   display: flex;
   justify-content: space-between;
@@ -592,20 +589,20 @@ input:focus {
 
 /* Efek Tekan Universal untuk semua tombol kecil */
 .smallbtn {
-  transition: transform 0.1s ease !important; /* Kecepatan animasi */
-  -webkit-tap-highlight-color: transparent; /* Hapus kotak biru bawaan HP */
+  transition: transform 0.1s ease !important;
+  -webkit-tap-highlight-color: transparent;
   outline: none;
 }
 
 /* Saat jari menyentuh tombol */
 .smallbtn:active {
-  transform: scale(0.8) !important; /* Menciut 20% agar terasa 'mendul' */
-  filter: brightness(0.9); /* Sedikit menggelap */
+  transform: scale(0.8) !important;
+  filter: brightness(0.9);
 }
 
 /* Efek tekan universal */
 .tekan {
-  transform: scale(0.92) !important; /* Menciut sedikit*/
+  transform: scale(0.92) !important;
   transition: transform 0.1s ease !important;
   filter: brightness(0.85) !important;
 }
@@ -625,10 +622,10 @@ input:focus {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background-color: #f8fafc; /* Warna abu-abu lembut mirip input */
+  background-color: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 12px; /* Kelengkungan disamakan dengan input lain */
-  padding: 12px 8px; /* Tinggi tombol yang pas untuk jari di HP */
+  border-radius: 12px;
+  padding: 12px 8px;
   font-size: 13px;
   font-weight: 600;
   color: #475569;
@@ -638,8 +635,8 @@ input:focus {
 
 /* Sedikit efek visual saat radio button aktif (opsional namun mempercantik UI) */
 .category-box:has(input:checked) {
-  background-color: #eff6ff; /* Berubah agak biru lembut saat dipilih */
-  border-color: #3b82f6; /* Garis tepi biru mengikuti warna tombol simpan */
+  background-color: #eff6ff;
+  border-color: #3b82f6;
   color: #1d4ed8;
 }
 
@@ -648,7 +645,7 @@ input:focus {
   margin: 0;
   width: 16px;
   height: 16px;
-  accent-color: #3b82f6; /* Warna dot radio disesuaikan tema biru */
+  accent-color: #3b82f6;
 }
 /* =========================================
    TAMBAHAN STRUKTUR KOMPAK RIT
@@ -806,7 +803,7 @@ input:focus {
   padding: 8px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
-  font-size: 10px; /* Ukuran agar muat sejajar 3 kotak */
+  font-size: 10px;
   font-weight: 800;
   background: #f8fafc;
   color: #475569;
@@ -824,22 +821,22 @@ input:focus {
 
 .dropdown-list {
   position: absolute;
-  top: calc(100% + 6px); /* Jarak kotak pilihan dari tombol */
+  top: calc(100% + 6px);
   left: 0;
-  min-width: 100%; /* Agar kotak tidak terpotong jika teks panjang */
+  min-width: 100%;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
-  z-index: 1000; /* Memastikan list muncul di atas elemen lain */
-  display: none; /* Sembunyikan secara default */
+  z-index: 1000;
+  display: none;
   flex-direction: column;
   overflow: hidden;
   animation: slideDown 0.2s ease-out;
 }
 
 .dropdown-list.show {
-  display: flex; /* Munculkan saat diklik */
+  display: flex;
 }
 
 .dropdown-item {
@@ -849,7 +846,7 @@ input:focus {
   color: #475569;
   cursor: pointer;
   border-bottom: 1px solid #f8fafc;
-  white-space: nowrap; /* Mencegah teks turun ke bawah */
+  white-space: nowrap;
 }
 
 .dropdown-item:last-child {
@@ -859,7 +856,7 @@ input:focus {
 .dropdown-item:active,
 .dropdown-item:hover {
   background: #eff6ff;
-  color: #1d4ed8; /* Berubah biru saat ditekan */
+  color: #1d4ed8;
 }
 
 @keyframes slideDown {
