@@ -297,7 +297,7 @@ function renderRitBreakdown(aktifList) {
     if (!isRitSelesai) {
       let spinnerStyle =
         "display:inline-block; width:10px; height:10px; border:2px solid rgba(255,255,255,0.4); border-top-color:white; border-radius:50%; animation: putar 1s linear infinite;";
-      btnActionHTML += `<button onclick="confirmRitDone('${ritName}')" style="background: var(--warning); border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:4px;"><span style="${spinnerStyle}"></span> Proses</button>`;
+      btnActionHTML += `<button onclick="confirmRitDone('${ritName}')" style="background: var(--warning); border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:#713f12; display:flex; align-items:center; gap:4px;"><span style="${spinnerStyle}"></span> Proses</button>`;
     } else {
       btnActionHTML += `<span style="background:#d1fae5; color:var(--success); border:1px solid #10b981; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:0.5px;">SELESAI</span>`;
     }
