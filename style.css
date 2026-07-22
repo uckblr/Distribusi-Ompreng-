@@ -980,3 +980,35 @@ input:focus {
 .item-dropdown-btn.delete {
   color: var(--danger);
 }
+/* =========================================
+   TAMPILAN KOSONG (EMPTY STATE)
+   ========================================= */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.empty-state svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  stroke: #cbd5e1; /* Warna abu-abu terang */
+}
+
+.empty-state h4 {
+  margin: 0 0 8px 0;
+  color: #475569;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
