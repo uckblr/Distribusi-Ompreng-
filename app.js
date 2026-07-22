@@ -242,10 +242,14 @@ function update() {
 /* =========================================
    LOGIKA BARU: RENDER BREAKDOWN PER RIT
    ========================================= */
+/* =========================================
+   LOGIKA BARU: RENDER BREAKDOWN PER RIT
+   ========================================= */
 function renderRitBreakdown(aktifList) {
   const container = document.getElementById("ritContainer");
   if (!container) return;
   container.innerHTML = "";
+
   const dashSearch =
     document.getElementById("dashSearchInput")?.value.toLowerCase().trim() ||
     "";
@@ -253,7 +257,20 @@ function renderRitBreakdown(aktifList) {
   let listRitTersedia = [
     ...new Set(aktifList.map((d) => d.rit || "Rit 1")),
   ].sort();
-  if (listRitTersedia.length === 0) return;
+
+  // TAMPILAN JIKA DATA KOSONG DI DASBOR
+  if (listRitTersedia.length === 0) {
+    container.innerHTML = `
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+            </svg>
+            <h4>Belum Ada Jadwal Rit</h4>
+            <p>Daftar kiriman per rit akan otomatis muncul di sini setelah Anda menambahkan sekolah.</p>
+        </div>
+      `;
+    return;
+  }
 
   listRitTersedia.forEach((ritName) => {
     let sekolahDiRitIni = aktifList.filter(
@@ -450,155 +467,181 @@ function render() {
     );
   });
 
-  filtered.forEach((d) => {
-    let originalIdx = data.findIndex((item) => item === d);
-    let statusColor =
-      d.status === "done"
-        ? "var(--success)"
-        : d.status === "holiday"
-          ? "#64748b"
-          : "var(--warning)";
+  // TAMPILAN JIKA HALAMAN SEKOLAH KOSONG
+  if (filtered.length === 0) {
+    listActive.innerHTML = `
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h4>Data Tidak Ditemukan</h4>
+            <p>Belum ada sekolah yang ditambahkan atau kata kunci tidak cocok.</p>
+        </div>
+      `;
+  } else {
+    filtered.forEach((d) => {
+      let originalIdx = data.findIndex((item) => item === d);
+      let statusColor =
+        d.status === "done"
+          ? "var(--success)"
+          : d.status === "holiday"
+            ? "#64748b"
+            : "var(--warning)";
 
-    let pkT = hitung(d.pk_val.i, d.pk_val.s);
-    let pbT = hitung(d.pb_val.i, d.pb_val.s);
-    let mobilClass = d.mobil === "Mobil 1" ? "tag-m1" : "tag-m2";
-    let ritLabel = d.rit || "Rit 1";
+      let pkT = hitung(d.pk_val.i, d.pk_val.s);
+      let pbT = hitung(d.pb_val.i, d.pb_val.s);
+      let mobilClass = d.mobil === "Mobil 1" ? "tag-m1" : "tag-m2";
+      let ritLabel = d.rit || "Rit 1";
 
-    let rekLabel = d._isSiap
-      ? `<span style="background:var(--success); color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:5px;">SIAP</span>`
-      : "";
+      let rekLabel = d._isSiap
+        ? `<span style="background:var(--success); color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:5px;">SIAP</span>`
+        : "";
 
-    let itemBg = "#f8fafc";
-    let itemBorder = d._isSiap ? "var(--success)" : "#e2e8f0";
-    let boxStyle = `background-color: ${itemBg}; border: 2px solid ${itemBorder};`;
+      let itemBg = "#f8fafc";
+      let itemBorder = d._isSiap ? "var(--success)" : "#e2e8f0";
+      let boxStyle = `background-color: ${itemBg}; border: 2px solid ${itemBorder};`;
 
-    let totalBgColor =
-      d.status === "done"
-        ? "var(--success)"
-        : d.status === "holiday"
-          ? "#64748b"
-          : "#fef08a";
-    let totalTextColor = d.status === "pending" ? "#713f12" : "#ffffff";
+      let totalBgColor =
+        d.status === "done"
+          ? "var(--success)"
+          : d.status === "holiday"
+            ? "#64748b"
+            : "#fef08a";
+      let totalTextColor = d.status === "pending" ? "#713f12" : "#ffffff";
 
-    let actionHTML = `
-      <div class="action-dropdown-container">
-          <button class="btn-action-trigger" onclick="toggleItemMenu(this)">⋮</button>
-          <div class="item-dropdown-menu">
-              <div class="item-dropdown-btn" style="color: #64748b;" onclick="editSekolah(${originalIdx})">Edit</div>
-              ${
-                d.status === "pending"
-                  ? `<div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'done')">Selesai</div>
-                     <div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'holiday')">Libur</div>`
-                  : `<div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'pending')">Proses</div>`
-              }
-              <div class="item-dropdown-btn delete" style="color: var(--danger);" onclick="confirmHapus(${originalIdx})">Hapus</div>
+      let actionHTML = `
+          <div class="action-dropdown-container">
+              <button class="btn-action-trigger" onclick="toggleItemMenu(this)">⋮</button>
+              <div class="item-dropdown-menu">
+                  <div class="item-dropdown-btn" style="color: #64748b;" onclick="editSekolah(${originalIdx})">Edit</div>
+                  ${
+                    d.status === "pending"
+                      ? `<div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'done')">Selesai</div>
+                         <div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'holiday')">Libur</div>`
+                      : `<div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'pending')">Proses</div>`
+                  }
+                  <div class="item-dropdown-btn delete" style="color: var(--danger);" onclick="confirmHapus(${originalIdx})">Hapus</div>
+              </div>
           </div>
-      </div>
-    `;
+        `;
 
-    let labelStatus = "PROSES";
-    if (d.status === "done") labelStatus = "SELESAI";
-    else if (d.status === "holiday") labelStatus = "LIBUR";
+      let labelStatus = "PROSES";
+      if (d.status === "done") labelStatus = "SELESAI";
+      else if (d.status === "holiday") labelStatus = "LIBUR";
 
-    let badgeHTML =
-      d.status === "pending"
-        ? `<span class="badge" style="background:${statusColor}; color: white; display: inline-flex; align-items: center; gap: 4px;"><span style="display:inline-block; width:8px; height:8px; border:2px solid rgba(255,255,255,0.4); border-top-color:white; border-radius:50%; animation: putar 1s linear infinite;"></span>${labelStatus}</span>`
-        : `<span class="badge" style="background:${statusColor}; color: white;">${labelStatus}</span>`;
+      let badgeHTML =
+        d.status === "pending"
+          ? `<span class="badge" style="background:${statusColor}; color: white; display: inline-flex; align-items: center; gap: 4px;"><span style="display:inline-block; width:8px; height:8px; border:2px solid rgba(255,255,255,0.4); border-top-color:white; border-radius:50%; animation: putar 1s linear infinite;"></span>${labelStatus}</span>`
+          : `<span class="badge" style="background:${statusColor}; color: white;">${labelStatus}</span>`;
 
-    let isPkDone = d.status === "done" || d.pk_done;
-    let isPbDone = d.status === "done" || d.pb_done;
+      let isPkDone = d.status === "done" || d.pk_done;
+      let isPbDone = d.status === "done" || d.pb_done;
 
-    // Hitung persentase progres untuk masing-masing sekolah
-    let doneItems = 0;
-    if (isPkDone) doneItems += pkT;
-    if (isPbDone) doneItems += pbT;
-    let schoolProgressPct =
-      d.total > 0 ? Math.round((doneItems / d.total) * 100) : 0;
+      // Hitung persentase progres untuk masing-masing sekolah
+      let doneItems = 0;
+      if (isPkDone) doneItems += pkT;
+      if (isPbDone) doneItems += pbT;
+      let schoolProgressPct =
+        d.total > 0 ? Math.round((doneItems / d.total) * 100) : 0;
 
-    let schoolProgressBarHTML = `
-      <div style="width: 100%; background: #e2e8f0; border-radius: 4px; height: 5px; margin: 6px 0 4px 0; overflow: hidden; display: flex;">
-          <div style="width: ${schoolProgressPct}%; background: #10b981; height: 100%; transition: width 0.3s ease;"></div>
-      </div>
-      <div style="font-size: 9px; color: #64748b; text-align: right; margin-bottom: 8px; font-weight: bold;">
-          ${schoolProgressPct}% Selesai
-      </div>
-    `;
-
-    let pkBoxStyle = isPkDone
-      ? "background:#f0fdf4; color:#166534;"
-      : "background:#fef2f2; color:#b91c1c;";
-    let pkTextStrike =
-      isPkDone && pkT > 0 ? "text-decoration:line-through;" : "";
-    let pbBoxStyle = isPbDone
-      ? "background:#f0fdf4; color:#166534;"
-      : "background:#f0f9ff; color:#0369a1;";
-    let pbTextStrike =
-      isPbDone && pbT > 0 ? "text-decoration:line-through;" : "";
-
-    listActive.innerHTML += `
-            <div class="item ${d.status}" style="${boxStyle}">
-                <div class="action">${actionHTML}</div>
-                <div style="margin-bottom:5px; padding-right: 25px;">
-                    ${badgeHTML}
-                    <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
-                    <span class="rit-tag">${ritLabel.toUpperCase()}</span>
-                    ${rekLabel}
-                </div>
-                <span class="item-title" style="display:block; font-weight:800; padding-right: 20px;">${d.nama}</span>
-                ${schoolProgressBarHTML}
-                <div style="display:flex; flex-direction:column; gap:4px">
-                    <div style="${pkBoxStyle} padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px;">
-                        <b style="${pkTextStrike}">PK</b> <span style="${pkTextStrike}">${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
-                    </div>
-                    <div style="${pbBoxStyle} padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px;">
-                        <b style="${pbTextStrike}">PB</b> <span style="${pbTextStrike}">${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
-                    </div>
-                    <div style="background:${totalBgColor}; color:${totalTextColor}; text-align:center; padding:5px; border-radius:8px; font-weight:900; font-size:11px;">
-                        TOTAL: ${d.total}
-                    </div>
-                </div>
-            </div>`;
-  });
-
-  historyData.forEach((d, i) => {
-    let pkT = hitung(d.pk_val.i, d.pk_val.s);
-    let pbT = hitung(d.pb_val.i, d.pb_val.s);
-    let mobilClass = d.mobil === "Mobil 1" ? "tag-m1" : "tag-m2";
-    let ritLabel = d.rit || "Rit 1";
-    let totalVal = d.total || pkT + pbT; // Memastikan total selalu dihitung
-
-    let actionHTML = `
-      <div class="action-dropdown-container">
-          <button class="btn-action-trigger" onclick="toggleItemMenu(this)">⋮</button>
-          <div class="item-dropdown-menu">
-              <div class="item-dropdown-btn" style="color: var(--success);" onclick="restore(${i})">Restore Data</div>
-              <div class="item-dropdown-btn delete" onclick="confirmHapusHist(${i})">Hapus Permanen</div>
+      let schoolProgressBarHTML = `
+          <div style="width: 100%; background: #e2e8f0; border-radius: 4px; height: 5px; margin: 6px 0 4px 0; overflow: hidden; display: flex;">
+              <div style="width: ${schoolProgressPct}%; background: #10b981; height: 100%; transition: width 0.3s ease;"></div>
           </div>
-      </div>
-    `;
+          <div style="font-size: 9px; color: #64748b; text-align: right; margin-bottom: 8px; font-weight: bold;">
+              ${schoolProgressPct}% Selesai
+          </div>
+        `;
 
-    listHist.innerHTML += `
-            <div class="item holiday" style="opacity: 0.85;">
-                <div class="action">${actionHTML}</div>
-                <div style="margin-bottom:5px">
-                    <span class="badge" style="background:#fee2e2; color:var(--danger); border:1px solid #fecaca;">TERHAPUS</span>
-                    <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
-                    <span class="rit-tag">${ritLabel.toUpperCase()}</span>
-                </div>
-                <span class="item-title" style="display:block; font-weight:800; margin-bottom:8px; color:#475569;">${d.nama}</span>
-                <div style="display:flex; flex-direction:column; gap:4px">
-                    <div style="background:#fef2f2; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px; color:#b91c1c;">
-                        <b>PK</b> <span>${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
+      let pkBoxStyle = isPkDone
+        ? "background:#f0fdf4; color:#166534;"
+        : "background:#fef2f2; color:#b91c1c;";
+      let pkTextStrike =
+        isPkDone && pkT > 0 ? "text-decoration:line-through;" : "";
+      let pbBoxStyle = isPbDone
+        ? "background:#f0fdf4; color:#166534;"
+        : "background:#f0f9ff; color:#0369a1;";
+      let pbTextStrike =
+        isPbDone && pbT > 0 ? "text-decoration:line-through;" : "";
+
+      listActive.innerHTML += `
+                <div class="item ${d.status}" style="${boxStyle}">
+                    <div class="action">${actionHTML}</div>
+                    <div style="margin-bottom:5px; padding-right: 25px;">
+                        ${badgeHTML}
+                        <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
+                        <span class="rit-tag">${ritLabel.toUpperCase()}</span>
+                        ${rekLabel}
                     </div>
-                    <div style="background:#f0f9ff; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px; color:#0369a1;">
-                        <b>PB</b> <span>${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
+                    <span class="item-title" style="display:block; font-weight:800; padding-right: 20px;">${d.nama}</span>
+                    ${schoolProgressBarHTML}
+                    <div style="display:flex; flex-direction:column; gap:4px">
+                        <div style="${pkBoxStyle} padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px;">
+                            <b style="${pkTextStrike}">PK</b> <span style="${pkTextStrike}">${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
+                        </div>
+                        <div style="${pbBoxStyle} padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px;">
+                            <b style="${pbTextStrike}">PB</b> <span style="${pbTextStrike}">${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
+                        </div>
+                        <div style="background:${totalBgColor}; color:${totalTextColor}; text-align:center; padding:5px; border-radius:8px; font-weight:900; font-size:11px;">
+                            TOTAL: ${d.total}
+                        </div>
                     </div>
-                    <div style="background:#e2e8f0; color:#475569; text-align:center; padding:5px; border-radius:8px; font-weight:900; font-size:11px;">
-                        TOTAL: ${totalVal}
+                </div>`;
+    });
+  }
+
+  // TAMPILAN JIKA HALAMAN HISTORI KOSONG
+  if (historyData.length === 0) {
+    listHist.innerHTML = `
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+            <h4>Riwayat Bersih</h4>
+            <p>Belum ada data sekolah yang Anda hapus.</p>
+        </div>
+      `;
+  } else {
+    historyData.forEach((d, i) => {
+      let pkT = hitung(d.pk_val.i, d.pk_val.s);
+      let pbT = hitung(d.pb_val.i, d.pb_val.s);
+      let mobilClass = d.mobil === "Mobil 1" ? "tag-m1" : "tag-m2";
+      let ritLabel = d.rit || "Rit 1";
+      let totalVal = d.total || pkT + pbT; // Memastikan total selalu dihitung
+
+      let actionHTML = `
+          <div class="action-dropdown-container">
+              <button class="btn-action-trigger" onclick="toggleItemMenu(this)">⋮</button>
+              <div class="item-dropdown-menu">
+                  <div class="item-dropdown-btn" style="color: var(--success);" onclick="restore(${i})">Restore Data</div>
+                  <div class="item-dropdown-btn delete" onclick="confirmHapusHist(${i})">Hapus Permanen</div>
+              </div>
+          </div>
+        `;
+
+      listHist.innerHTML += `
+                <div class="item holiday" style="opacity: 0.85;">
+                    <div class="action">${actionHTML}</div>
+                    <div style="margin-bottom:5px">
+                        <span class="badge" style="background:#fee2e2; color:var(--danger); border:1px solid #fecaca;">TERHAPUS</span>
+                        <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
+                        <span class="rit-tag">${ritLabel.toUpperCase()}</span>
                     </div>
-                </div>
-            </div>`;
-  });
+                    <span class="item-title" style="display:block; font-weight:800; margin-bottom:8px; color:#475569;">${d.nama}</span>
+                    <div style="display:flex; flex-direction:column; gap:4px">
+                        <div style="background:#fef2f2; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px; color:#b91c1c;">
+                            <b>PK</b> <span>${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
+                        </div>
+                        <div style="background:#f0f9ff; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px; color:#0369a1;">
+                            <b>PB</b> <span>${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
+                        </div>
+                        <div style="background:#e2e8f0; color:#475569; text-align:center; padding:5px; border-radius:8px; font-weight:900; font-size:11px;">
+                            TOTAL: ${totalVal}
+                        </div>
+                    </div>
+                </div>`;
+    });
+  }
 }
 
 /* =========================================
