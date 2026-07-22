@@ -263,8 +263,6 @@
         </div>
 
         <div id="ritContainer"></div>
-
-        <div id="ritContainer"></div>
       </section>
 
       <section id="data-sekolah" class="page">
@@ -572,7 +570,6 @@
         </div>
       </div>
     </div>
-    <!-- Perbaikan Tag Penutup -->
 
     <div id="infoModal" class="modal-overlay" onclick="closeInfoModal()">
       <div
@@ -742,7 +739,102 @@
         </button>
       </div>
     </div>
-    <!-- Perbaikan Tag Penutup -->
+    <!-- MODAL PILIHAN PARSIAL RIT (PK / PB / SEMUA) -->
+    <div
+      id="ritPartialModal"
+      class="modal-overlay"
+      onclick="closeRitPartialModal()"
+    >
+      <div
+        class="modal-box"
+        style="max-width: 320px; text-align: center; padding: 20px"
+        onclick="event.stopPropagation()"
+      >
+        <div style="font-size: 36px; margin-bottom: 8px">📦</div>
+        <h3
+          id="ritPartialTitle"
+          style="
+            margin-top: 0;
+            margin-bottom: 6px;
+            color: var(--dark);
+            font-weight: 800;
+            font-size: 16px;
+          "
+        >
+          SELESAIKAN RIT
+        </h3>
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 20px">
+          Pilih bagian logistik yang ingin ditandai selesai untuk rit ini:
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <button
+            onclick="eksekusiPartialRit('pk')"
+            style="
+              width: 100%;
+              padding: 12px;
+              background: #fef2f2;
+              color: #b91c1c;
+              border: 1px solid #fee2e2;
+              border-radius: 10px;
+              font-weight: 800;
+              font-size: 13px;
+              cursor: pointer;
+            "
+          >
+            ✨ Selesaikan PK Saja
+          </button>
+          <button
+            onclick="eksekusiPartialRit('pb')"
+            style="
+              width: 100%;
+              padding: 12px;
+              background: #f0f9ff;
+              color: #0369a1;
+              border: 1px solid #e0f2fe;
+              border-radius: 10px;
+              font-weight: 800;
+              font-size: 13px;
+              cursor: pointer;
+            "
+          >
+            ✨ Selesaikan PB Saja
+          </button>
+          <button
+            onclick="eksekusiPartialRit('semua')"
+            style="
+              width: 100%;
+              padding: 12px;
+              background: var(--success);
+              color: white;
+              border: none;
+              border-radius: 10px;
+              font-weight: 800;
+              font-size: 13px;
+              cursor: pointer;
+              box-shadow: 0 4px 6px rgba(0, 170, 91, 0.2);
+            "
+          >
+            ✅ Selesaikan Keduanya (Semua)
+          </button>
+        </div>
+
+        <button
+          onclick="closeRitPartialModal()"
+          style="
+            margin-top: 15px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+          "
+        >
+          Batal
+        </button>
+      </div>
+    </div>
 
     <script src="app.js"></script>
   </body>
