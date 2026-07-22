@@ -829,10 +829,20 @@ function simpanPerubahanModal() {
   }
 
   let prev = data[idx];
-  let new_pk_done =
-    status === "done" ? true : status === "pending" ? prev.pk_done : false;
-  let new_pb_done =
-    status === "done" ? true : status === "pending" ? prev.pb_done : false;
+
+  // PERBAIKAN LOGIKA PENANGANAN STATUS
+  let new_pk_done = prev.pk_done;
+  let new_pb_done = prev.pb_done;
+
+  if (status === "done") {
+    new_pk_done = true;
+    new_pb_done = true;
+  } else if (status === "pending" && prev.status !== "pending") {
+    // Jika diubah kembali ke PENDING, reset status parsial PK & PB
+    // (Jika memang muatannya 0, fungsi syncStatus() akan otomatis membenarkannya)
+    new_pk_done = false;
+    new_pb_done = false;
+  }
 
   data[idx] = {
     nama,
