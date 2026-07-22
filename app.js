@@ -79,8 +79,8 @@ function confirmRitDone(ritName) {
       <h3 style="margin:0 0 5px 0; font-size:18px; color:var(--dark);">Selesaikan ${ritName.toUpperCase()}</h3>
       <p style="font-size:13px; color:#64748b; margin-bottom:20px;">Tandai bagian mana yang sudah selesai dikirim?</p>
       <div style="display:flex; flex-direction:column; gap:10px;">
-          <button onclick="processRitDone('${ritName}', 'PK')" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer;">SELESAI PK SAJA</button>
-          <button onclick="processRitDone('${ritName}', 'PB')" style="background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer;">SELESAI PB SAJA</button>
+          <button onclick="processRitDone('${ritName}', 'PK')" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer;">PK SELESAI</button>
+          <button onclick="processRitDone('${ritName}', 'PB')" style="background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer;">PB SELESAI</button>
           <button onclick="processRitDone('${ritName}', 'ALL')" style="background:#22c55e; color:white; border:none; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 4px 6px rgba(34,197,94,0.2);">SELESAI SEMUA</button>
           <button onclick="document.getElementById('ritConfirmOverlay').remove()" style="background:transparent; color:#64748b; border:none; padding:10px; margin-top:5px; cursor:pointer; font-weight:700; font-size:14px;">Batal</button>
       </div>
@@ -261,7 +261,6 @@ function renderRitBreakdown(aktifList) {
     );
     let isRitSelesai = sekolahDiRitIni.every((d) => d.status === "done");
 
-    // Cek apakah seluruh PK / PB di rit ini selesai (Abaikan yang porsinya 0)
     let isRitPkDone = sekolahDiRitIni.every(
       (d) => d.status === "done" || d.pk_done,
     );
@@ -269,10 +268,24 @@ function renderRitBreakdown(aktifList) {
       (d) => d.status === "done" || d.pb_done,
     );
 
-    // FIX: Total Rit berkurang mengikuti apa yang masih tersisa
+    // Hitung persentase progress Rit
+    let ritTargetTotal = sekolahDiRitIni.reduce((sum, d) => sum + d.total, 0);
+    let ritKirimTotal = sekolahDiRitIni.reduce((sum, d) => {
+      let t = 0;
+      let pkVal = hitung(d.pk_val.i, d.pk_val.s);
+      let pbVal = hitung(d.pb_val.i, d.pb_val.s);
+      if (d.status === "done" || d.pk_done) t += pkVal;
+      if (d.status === "done" || d.pb_done) t += pbVal;
+      return sum + t;
+    }, 0);
+    let ritProgressPct =
+      ritTargetTotal > 0
+        ? Math.round((ritKirimTotal / ritTargetTotal) * 100)
+        : 0;
+
     let totalRit = 0;
     if (isRitSelesai) {
-      totalRit = sekolahDiRitIni.reduce((sum, d) => sum + d.total, 0); // Jika kelar semua, tampilkan total utuh
+      totalRit = ritTargetTotal;
     } else {
       sekolahDiRitIni.forEach((d) => {
         if (d.status !== "done") {
@@ -313,6 +326,14 @@ function renderRitBreakdown(aktifList) {
       ? "background: #f8fafc; border: 1px solid #cbd5e1;"
       : "background: white; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.03);";
 
+    // Progress Bar HTML
+    let progressHTML = `
+      <div style="width: 100%; background: #e2e8f0; border-radius: 4px; height: 6px; margin: 8px 0; overflow: hidden;">
+          <div style="width: ${ritProgressPct}%; background: #10b981; height: 100%; transition: width 0.3s ease;"></div>
+      </div>
+      <div style="font-size: 10px; color: #64748b; text-align: right; margin-top: -4px; margin-bottom: 8px; font-weight: bold;">${ritProgressPct}% Selesai</div>
+    `;
+
     let listSekolahHTML = `<div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">`;
 
     sekolahDiRitIni.forEach((sek) => {
@@ -328,7 +349,6 @@ function renderRitBreakdown(aktifList) {
       if (sek.status === "done") {
         listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; background: #f1f5f9; color: #9FA6B0; padding: 4px 8px; border-radius: 6px; text-decoration: line-through; border: 1px solid #e2e8f0; ${cursorStyle}">${sek.nama}</span>`;
       } else {
-        // Hanya munculkan ✓PK jika memang ada nilainya (tidak 0)
         let pkInd =
           sek.pk_done && pkVal > 0
             ? ` <span style="color:#166534; font-size:10px; font-weight:900;">✓PK</span>`
@@ -343,6 +363,7 @@ function renderRitBreakdown(aktifList) {
     });
 
     listSekolahHTML += `</div>`;
+
     container.innerHTML += `
             <div class="rit-summary-card" style="${cardStyle}">
                 <div class="rit-summary-title" style="margin-bottom: 10px;">
@@ -351,9 +372,10 @@ function renderRitBreakdown(aktifList) {
                         ${btnActionHTML}
                     </div>
                     <span style="font-size: 13px; font-weight: 900; color: ${isRitSelesai ? "var(--success)" : "var(--dark)"};">
-                        Total: ${totalRit}
+                        Total Sisa: ${totalRit}
                     </span>
                 </div>
+                ${progressHTML}
                 <div class="rit-summary-row">
                     <div class="rit-summary-item" style="${stylePK}">
                         PK ${pkRitData.totalPorsiIkat} <span class="rit-summary-eceran" style="opacity: 0.85;">(${pkRitData.teksDetail})</span>
@@ -446,22 +468,16 @@ function render() {
       ? `<span style="background:var(--success); color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:5px;">SIAP</span>`
       : "";
 
-    // Semua kartu menggunakan background abu-abu terang default
     let itemBg = "#f8fafc";
-
-    // Garis border default abu-abu, tapi kalau stok "SIAP" berubah jadi hijau
     let itemBorder = d._isSiap ? "var(--success)" : "#e2e8f0";
-
     let boxStyle = `background-color: ${itemBg}; border: 2px solid ${itemBorder};`;
-    // Latar belakang kuning lembut untuk pending, hijau untuk done, abu-abu untuk holiday
+
     let totalBgColor =
       d.status === "done"
         ? "var(--success)"
         : d.status === "holiday"
           ? "#64748b"
           : "#fef08a";
-
-    // Warna teks: hitam/coklat tua khusus untuk pending agar kontras dengan kuning, putih untuk status lain
     let totalTextColor = d.status === "pending" ? "#713f12" : "#ffffff";
 
     let actionHTML = `
@@ -480,7 +496,6 @@ function render() {
       </div>
     `;
 
-    // Mengubah kata-kata status agar lebih mudah dipahami
     let labelStatus = "PROSES";
     if (d.status === "done") labelStatus = "SELESAI";
     else if (d.status === "holiday") labelStatus = "LIBUR";
@@ -492,6 +507,22 @@ function render() {
 
     let isPkDone = d.status === "done" || d.pk_done;
     let isPbDone = d.status === "done" || d.pb_done;
+
+    // Hitung persentase progres untuk masing-masing sekolah
+    let doneItems = 0;
+    if (isPkDone) doneItems += pkT;
+    if (isPbDone) doneItems += pbT;
+    let schoolProgressPct =
+      d.total > 0 ? Math.round((doneItems / d.total) * 100) : 0;
+
+    let schoolProgressBarHTML = `
+      <div style="width: 100%; background: #e2e8f0; border-radius: 4px; height: 5px; margin: 6px 0 4px 0; overflow: hidden; display: flex;">
+          <div style="width: ${schoolProgressPct}%; background: #10b981; height: 100%; transition: width 0.3s ease;"></div>
+      </div>
+      <div style="font-size: 9px; color: #64748b; text-align: right; margin-bottom: 8px; font-weight: bold;">
+          ${schoolProgressPct}% Selesai
+      </div>
+    `;
 
     let pkBoxStyle = isPkDone
       ? "background:#f0fdf4; color:#166534;"
@@ -513,7 +544,8 @@ function render() {
                     <span class="rit-tag">${ritLabel.toUpperCase()}</span>
                     ${rekLabel}
                 </div>
-                <span class="item-title" style="display:block; font-weight:800; margin-bottom:8px; padding-right: 20px;">${d.nama}</span>
+                <span class="item-title" style="display:block; font-weight:800; padding-right: 20px;">${d.nama}</span>
+                ${schoolProgressBarHTML}
                 <div style="display:flex; flex-direction:column; gap:4px">
                     <div style="${pkBoxStyle} padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px;">
                         <b style="${pkTextStrike}">PK</b> <span style="${pkTextStrike}">${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
@@ -533,6 +565,7 @@ function render() {
     let pbT = hitung(d.pb_val.i, d.pb_val.s);
     let mobilClass = d.mobil === "Mobil 1" ? "tag-m1" : "tag-m2";
     let ritLabel = d.rit || "Rit 1";
+    let totalVal = d.total || pkT + pbT; // Memastikan total selalu dihitung
 
     let actionHTML = `
       <div class="action-dropdown-container">
@@ -559,6 +592,9 @@ function render() {
                     </div>
                     <div style="background:#f0f9ff; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px; color:#0369a1;">
                         <b>PB</b> <span>${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
+                    </div>
+                    <div style="background:#e2e8f0; color:#475569; text-align:center; padding:5px; border-radius:8px; font-weight:900; font-size:11px;">
+                        TOTAL: ${totalVal}
                     </div>
                 </div>
             </div>`;
@@ -1030,9 +1066,9 @@ function showSchoolInfo(idx) {
     btnSelesaiHTML = `<div style="display: flex; gap: 8px; margin-top: 15px;">`;
     // Tombol hanya muncul jika PK/PB nya lebih dari 0
     if (!s.pk_done && pkT > 0)
-      btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'PK')" style="flex:1; padding:10px; background:#ef4444; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;">SELESAI PK</button>`;
+      btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'PK')" style="flex:1; padding:10px; background:#ef4444; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;">PK SELESAI</button>`;
     if (!s.pb_done && pbT > 0)
-      btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'PB')" style="flex:1; padding:10px; background:#0ea5e9; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;">SELESAI PB</button>`;
+      btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'PB')" style="flex:1; padding:10px; background:#0ea5e9; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;">PB SELESAI</button>`;
 
     btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'ALL')" style="flex:1; padding:10px; background:#22c55e; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; box-shadow:0 4px 6px rgba(34,197,94,0.2);">SELESAI</button>
     </div>`;
