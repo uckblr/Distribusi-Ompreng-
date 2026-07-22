@@ -15,6 +15,31 @@ const hitung = (i, s) =>
   Math.max(0, parseInt(i) || 0) * 5 + Math.max(0, parseInt(s) || 0);
 
 /* =========================================
+   FUNGSI SINKRONISASI STATUS (BARU)
+   Mencegah error pada sekolah dengan PK=0 / PB=0
+   ========================================= */
+function syncStatus(d) {
+  let pk = hitung(d.pk_val.i, d.pk_val.s);
+  let pb = hitung(d.pb_val.i, d.pb_val.s);
+
+  // Jika muatan 0, otomatis dianggap selesai untuk bagian tersebut
+  if (pk === 0) d.pk_done = true;
+  if (pb === 0) d.pb_done = true;
+
+  if (d.status === "done") {
+    d.pk_done = true;
+    d.pb_done = true;
+  } else {
+    // Jika keduanya sudah true, ubah status utama jadi done
+    if (d.pk_done && d.pb_done) {
+      d.status = "done";
+    } else {
+      d.status = "pending";
+    }
+  }
+}
+
+/* =========================================
    NAVIGASI HALAMAN
    ========================================= */
 function showPage(pId, el) {
@@ -36,33 +61,65 @@ function showPage(pId, el) {
   update();
 }
 
+/* =========================================
+   MODAL RIT (SELESAI PK, PB, SEMUA)
+   ========================================= */
 function confirmRitDone(ritName) {
-  openModal(
-    "✅",
-    "Selesaikan Rit",
-    `Tandai semua sekolah di ${ritName.toUpperCase()} menjadi SELESAI?`,
-    "#22c55e",
-    () => {
-      let changedIndices = [];
-      data.forEach((d, idx) => {
-        if ((d.rit || "Rit 1") === ritName && d.status === "pending") {
-          changedIndices.push(idx);
-          d.status = "done";
-        }
-      });
+  const overlay = document.createElement("div");
+  overlay.id = "ritConfirmOverlay";
+  overlay.style.cssText =
+    "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999;";
 
-      if (changedIndices.length > 0) {
-        deletedItem = {
-          type: "bulk_status",
-          indices: changedIndices,
-          content: "pending",
-        };
-        update();
-        showSnackbar(`${ritName.toUpperCase()}`);
-      }
-    },
-  );
+  const box = document.createElement("div");
+  box.style.cssText =
+    "background:white; padding:24px; border-radius:16px; width:85%; max-width:320px; text-align:center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);";
+
+  box.innerHTML = `
+      <div style="font-size:32px; margin-bottom:10px;">🚚</div>
+      <h3 style="margin:0 0 5px 0; font-size:18px; color:var(--dark);">Selesaikan ${ritName.toUpperCase()}</h3>
+      <p style="font-size:13px; color:#64748b; margin-bottom:20px;">Tandai bagian mana yang sudah selesai dikirim?</p>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+          <button onclick="processRitDone('${ritName}', 'PK')" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer;">SELESAI PK SAJA</button>
+          <button onclick="processRitDone('${ritName}', 'PB')" style="background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer;">SELESAI PB SAJA</button>
+          <button onclick="processRitDone('${ritName}', 'ALL')" style="background:#22c55e; color:white; border:none; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 4px 6px rgba(34,197,94,0.2);">SELESAI SEMUA</button>
+          <button onclick="document.getElementById('ritConfirmOverlay').remove()" style="background:transparent; color:#64748b; border:none; padding:10px; margin-top:5px; cursor:pointer; font-weight:700; font-size:14px;">Batal</button>
+      </div>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
+
+function processRitDone(ritName, type) {
+  let changedIndices = [];
+  data.forEach((d, idx) => {
+    if ((d.rit || "Rit 1") === ritName && d.status === "pending") {
+      changedIndices.push(idx);
+      if (type === "PK") d.pk_done = true;
+      if (type === "PB") d.pb_done = true;
+      if (type === "ALL") {
+        d.pk_done = true;
+        d.pb_done = true;
+      }
+      syncStatus(d); // Selaraskan status jika keduanya true otomatis done
+    }
+  });
+
+  if (document.getElementById("ritConfirmOverlay")) {
+    document.getElementById("ritConfirmOverlay").remove();
+  }
+
+  if (changedIndices.length > 0) {
+    deletedItem = {
+      type: "bulk_status",
+      indices: changedIndices,
+      content: "pending",
+    };
+    update();
+    let msgType = type === "ALL" ? "SEMUA" : type;
+    showSnackbar(`${ritName.toUpperCase()} - ${msgType} SELESAI`);
+  }
+}
+
 /* =========================================
    HELPER BARU: HITUNG IKAT & DERETKAN SISA
    ========================================= */
@@ -71,30 +128,18 @@ function formatDetailPorsi(listData, tipe) {
   let deretSisa = [];
 
   listData.forEach((d) => {
-    // Hitung total porsi untuk 1 sekolah ini
     let porsi =
       tipe === "PK"
         ? hitung(d.pk_val.i, d.pk_val.s)
         : hitung(d.pb_val.i, d.pb_val.s);
-
-    // Ambil jumlah Ikat murni dari sekolah ini
     ikatTerkumpul += Math.floor(porsi / 5);
-
-    // Ambil sisa eceran. Jika ada, jejerkan
     let sisa = porsi % 5;
-    if (sisa > 0) {
-      deretSisa.push(sisa);
-    }
+    if (sisa > 0) deretSisa.push(sisa);
   });
 
-  // LOGIKA BARU: Angka utama murni dari jumlah ikat dikali 5
   let totalPorsiIkat = ikatTerkumpul * 5;
-
-  // Gabungkan teksnya jadi format: "55 iket + 1 + 3 + 1"
   let teksDetail = `${ikatTerkumpul} iket`;
-  if (deretSisa.length > 0) {
-    teksDetail += ` + ${deretSisa.join(" + ")}`;
-  }
+  if (deretSisa.length > 0) teksDetail += ` + ${deretSisa.join(" + ")}`;
 
   return { totalPorsiIkat, teksDetail };
 }
@@ -103,46 +148,70 @@ function formatDetailPorsi(listData, tipe) {
    CORE LOGIC (UPDATE DASHBOARD & RIT GROUPING)
    ========================================= */
 function update() {
+  // Lakukan sinkronisasi ke seluruh data aktif terlebih dahulu
+  data.forEach((d) => {
+    if (d.status !== "holiday") syncStatus(d);
+  });
+
   const readyVal = Math.max(
     0,
     parseInt(document.getElementById("readyInput")?.value || 0),
   );
 
   let aktif = data.filter((d) => d.status !== "holiday");
-  let pending = data.filter((d) => d.status === "pending");
   let done = data.filter((d) => d.status === "done");
 
   setTxt("sekolahDoneCount", `${done.length} sekolah selesai`);
 
   let targetTotal = aktif.reduce((sum, d) => sum + d.total, 0);
-  let kirimTotal = done.reduce((sum, d) => sum + d.total, 0);
+
+  // FIX: Terdistribusi/Kirim Total kini berhitung parsial (PK/PB Saja ditambahkan)
+  let kirimTotal = aktif.reduce((sum, d) => {
+    let t = 0;
+    let pkVal = hitung(d.pk_val.i, d.pk_val.s);
+    let pbVal = hitung(d.pb_val.i, d.pb_val.s);
+    if (d.status === "done" || d.pk_done) t += pkVal;
+    if (d.status === "done" || d.pb_done) t += pbVal;
+    return sum + t;
+  }, 0);
 
   let pkTot = aktif.reduce((sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s), 0);
-  let pkDone = done.reduce((sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s), 0);
   let pbTot = aktif.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
-  let pbDone = done.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
+
+  let pkDone = aktif.reduce(
+    (sum, d) =>
+      sum +
+      (d.status === "done" || d.pk_done ? hitung(d.pk_val.i, d.pk_val.s) : 0),
+    0,
+  );
+  let pbDone = aktif.reduce(
+    (sum, d) =>
+      sum +
+      (d.status === "done" || d.pb_done ? hitung(d.pb_val.i, d.pb_val.s) : 0),
+    0,
+  );
 
   setTxt("targetView", targetTotal);
   setTxt("terdistribusiView", kirimTotal);
   setTxt("sisaTarget", Math.max(0, targetTotal - kirimTotal));
 
-  // Ambil data detail PK dan PB yang sudah dipisah murni
-  let pkPending = formatDetailPorsi(pending, "PK");
-  let pbPending = formatDetailPorsi(pending, "PB");
+  // Ambil sisa PK dan PB yang BENAR-BENAR belum selesai
+  let pkPendingData = aktif.filter((d) => d.status !== "done" && !d.pk_done);
+  let pbPendingData = aktif.filter((d) => d.status !== "done" && !d.pb_done);
+
+  let pkPending = formatDetailPorsi(pkPendingData, "PK");
+  let pbPending = formatDetailPorsi(pbPendingData, "PB");
 
   setTxt("totalPKView", pkTot);
   setTxt("pkDoneView", pkDone);
-  // Gunakan angka porsi ikat murni (tidak dicampur sisa)
   setTxt("pkSisaView", pkPending.totalPorsiIkat);
   setTxt("pkDetailIkat", pkPending.teksDetail);
 
   setTxt("totalPBView", pbTot);
   setTxt("pbDoneView", pbDone);
-  // Gunakan angka porsi ikat murni (tidak dicampur sisa)
   setTxt("pbSisaView", pbPending.totalPorsiIkat);
   setTxt("pbDetailIkat", pbPending.teksDetail);
 
-  // Render Breakdown Rit
   renderRitBreakdown(aktif);
 
   let pKirim = targetTotal > 0 ? (kirimTotal / targetTotal) * 100 : 0;
@@ -171,7 +240,7 @@ function update() {
 }
 
 /* =========================================
-   LOGIKA BARU: RENDER BREAKDOWN PER RIT (FIXED KONSISTEN)
+   LOGIKA BARU: RENDER BREAKDOWN PER RIT
    ========================================= */
 function renderRitBreakdown(aktifList) {
   const container = document.getElementById("ritContainer");
@@ -190,46 +259,62 @@ function renderRitBreakdown(aktifList) {
     let sekolahDiRitIni = aktifList.filter(
       (d) => (d.rit || "Rit 1") === ritName,
     );
-    let sekolahPendingRit = sekolahDiRitIni.filter(
-      (d) => d.status === "pending",
+    let isRitSelesai = sekolahDiRitIni.every((d) => d.status === "done");
+
+    // Cek apakah seluruh PK / PB di rit ini selesai (Abaikan yang porsinya 0)
+    let isRitPkDone = sekolahDiRitIni.every(
+      (d) => d.status === "done" || d.pk_done,
+    );
+    let isRitPbDone = sekolahDiRitIni.every(
+      (d) => d.status === "done" || d.pb_done,
     );
 
-    let isRitSelesai = sekolahPendingRit.length === 0;
-    let dataHitung = isRitSelesai ? sekolahDiRitIni : sekolahPendingRit;
+    // FIX: Total Rit berkurang mengikuti apa yang masih tersisa
+    let totalRit = 0;
+    if (isRitSelesai) {
+      totalRit = sekolahDiRitIni.reduce((sum, d) => sum + d.total, 0); // Jika kelar semua, tampilkan total utuh
+    } else {
+      sekolahDiRitIni.forEach((d) => {
+        if (d.status !== "done") {
+          if (!d.pk_done) totalRit += hitung(d.pk_val.i, d.pk_val.s);
+          if (!d.pb_done) totalRit += hitung(d.pb_val.i, d.pb_val.s);
+        }
+      });
+    }
 
-    let totalRit = dataHitung.reduce((sum, d) => sum + d.total, 0);
+    let dataHitungPK = isRitPkDone
+      ? sekolahDiRitIni
+      : sekolahDiRitIni.filter((d) => d.status === "pending" && !d.pk_done);
+    let dataHitungPB = isRitPbDone
+      ? sekolahDiRitIni
+      : sekolahDiRitIni.filter((d) => d.status === "pending" && !d.pb_done);
 
-    // Gunakan fungsi helper agar format murni terpakai di sini juga
-    let pkRitData = formatDetailPorsi(dataHitung, "PK");
-    let pbRitData = formatDetailPorsi(dataHitung, "PB");
+    let pkRitData = formatDetailPorsi(dataHitungPK, "PK");
+    let pbRitData = formatDetailPorsi(dataHitungPB, "PB");
 
-    let btnActionHTML = `
-        <button onclick="shareRitSummary('${ritName}')" style="background:#e2e8f0; border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:#475569;">SHARE</button>
-    `;
+    let btnActionHTML = `<button onclick="shareRitSummary('${ritName}')" style="background:#e2e8f0; border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:#475569;">SHARE</button>`;
 
     if (!isRitSelesai) {
       let spinnerStyle =
         "display:inline-block; width:10px; height:10px; border:2px solid rgba(255,255,255,0.4); border-top-color:white; border-radius:50%; animation: putar 1s linear infinite;";
-      btnActionHTML += `
-            <button onclick="confirmRitDone('${ritName}')" style="background: var(--warning); border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:4px;">
-                <span style="${spinnerStyle}"></span> SELESAI
-            </button>
-        `;
+      btnActionHTML += `<button onclick="confirmRitDone('${ritName}')" style="background: var(--warning); border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:var(--dark); display:flex; align-items:center; gap:4px;"><span style="${spinnerStyle}"></span> Proses</button>`;
     } else {
       btnActionHTML += `<span style="background:#d1fae5; color:var(--success); border:1px solid #10b981; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:0.5px;">SELESAI</span>`;
     }
 
-    let stylePK = isRitSelesai
-      ? "background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0;"
+    let stylePK = isRitPkDone
+      ? "background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0; text-decoration:line-through;"
       : "background:#fef2f2; color:var(--danger); border:1px solid #fee2e2;";
-    let stylePB = isRitSelesai
-      ? "background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0;"
+    let stylePB = isRitPbDone
+      ? "background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0; text-decoration:line-through;"
       : "background:#f0f9ff; color:#0284c7; border:1px solid #e0f2fe;";
+
     let cardStyle = isRitSelesai
       ? "background: #f8fafc; border: 1px solid #cbd5e1;"
       : "background: white; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.03);";
 
     let listSekolahHTML = `<div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">`;
+
     sekolahDiRitIni.forEach((sek) => {
       let originalIdx = data.indexOf(sek);
       let cursorStyle = "cursor: pointer; transition: all 0.3s ease;";
@@ -237,15 +322,27 @@ function renderRitBreakdown(aktifList) {
         dashSearch && sek.nama.toLowerCase().includes(dashSearch);
       let highlightClass = isHighlighted ? "highlight-school" : "";
 
+      let pkVal = hitung(sek.pk_val.i, sek.pk_val.s);
+      let pbVal = hitung(sek.pb_val.i, sek.pb_val.s);
+
       if (sek.status === "done") {
         listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; background: #f1f5f9; color: #9FA6B0; padding: 4px 8px; border-radius: 6px; text-decoration: line-through; border: 1px solid #e2e8f0; ${cursorStyle}">${sek.nama}</span>`;
       } else {
-        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; font-weight: 700; background: #eff6ff; color: #1d4ed8; padding: 4px 8px; border-radius: 6px; border: 1px solid #bfdbfe; ${cursorStyle}">${sek.nama}</span>`;
+        // Hanya munculkan ✓PK jika memang ada nilainya (tidak 0)
+        let pkInd =
+          sek.pk_done && pkVal > 0
+            ? ` <span style="color:#166534; font-size:10px; font-weight:900;">✓PK</span>`
+            : "";
+        let pbInd =
+          sek.pb_done && pbVal > 0
+            ? ` <span style="color:#166534; font-size:10px; font-weight:900;">✓PB</span>`
+            : "";
+
+        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; font-weight: 700; background: #eff6ff; color: #1d4ed8; padding: 4px 8px; border-radius: 6px; border: 1px solid #bfdbfe; ${cursorStyle}">${sek.nama}${pkInd}${pbInd}</span>`;
       }
     });
 
     listSekolahHTML += `</div>`;
-
     container.innerHTML += `
             <div class="rit-summary-card" style="${cardStyle}">
                 <div class="rit-summary-title" style="margin-bottom: 10px;">
@@ -258,7 +355,6 @@ function renderRitBreakdown(aktifList) {
                     </span>
                 </div>
                 <div class="rit-summary-row">
-                    <!-- Gunakan angka MURNI hasil kali 5 di luar kurung -->
                     <div class="rit-summary-item" style="${stylePK}">
                         PK ${pkRitData.totalPorsiIkat} <span class="rit-summary-eceran" style="opacity: 0.85;">(${pkRitData.teksDetail})</span>
                     </div>
@@ -275,7 +371,6 @@ function renderRitBreakdown(aktifList) {
 /* =========================================
    UI RENDER (LIST ACTIVE & HISTORY)
    ========================================= */
-
 function render() {
   const listActive = document.getElementById("listActive");
   const listHist = document.getElementById("listHistory");
@@ -284,152 +379,186 @@ function render() {
   listActive.innerHTML = "";
   listHist.innerHTML = "";
 
-  // 1. Urutkan data secara global terlebih dahulu
   let sorted = [...data].sort((a, b) => {
     const urutanStatus = { pending: 1, done: 2, holiday: 3 };
     let compareStatus = urutanStatus[a.status] - urutanStatus[b.status];
-
     if (compareStatus === 0) {
-      let ritA = a.rit || "Rit 1";
-      let ritB = b.rit || "Rit 1";
-      return ritA.localeCompare(ritB);
+      return (a.rit || "Rit 1").localeCompare(b.rit || "Rit 1");
     }
     return compareStatus;
   });
 
-  // 2. Tentukan status "SIAP" secara global (sebelum difilter) agar stok adil
   let stokCek = Math.max(
     0,
     parseInt(document.getElementById("readyInput")?.value || 0),
   );
   sorted.forEach((d) => {
-    d._isSiap = false; // Reset properti sementara
+    d._isSiap = false;
     if (d.status === "pending") {
       if (stokCek >= d.total && stokCek > 0) {
         d._isSiap = true;
-        stokCek -= d.total; // Kurangi stok secara global
+        stokCek -= d.total;
       }
     }
   });
 
-  // 3. Tangkap nilai dari form pencarian dan dropdown filter
   const search =
     document.getElementById("searchInput")?.value.toLowerCase().trim() || "";
   const fMobil = document.getElementById("filterMobilSel")?.value || "Semua";
   const fRit = document.getElementById("filterRitSel")?.value || "Semua";
   const fStatus = document.getElementById("filterStatusSel")?.value || "Semua";
 
-  // 4. Lakukan filter berdasarkan Smart Search & Multi Dropdown
   let filtered = sorted.filter((d) => {
-    // LOGIKA PENCARIAN PINTAR (Kata Kombinasi & Angka Muatan)
     let matchesSearch = true;
     if (search) {
-      // Pecah kalimat menjadi beberapa kata
       const keywords = search.split(/\s+/);
-      matchesSearch = keywords.every((kw) => {
-        return (
+      matchesSearch = keywords.every(
+        (kw) =>
           d.nama.toLowerCase().includes(kw) ||
           (d.rit || "rit 1").toLowerCase().includes(kw) ||
           d.status.toLowerCase().includes(kw) ||
-          d.total.toString() === kw
-        );
-      });
+          d.total.toString() === kw,
+      );
     }
-
-    // LOGIKA FILTER DROPDOWN
-    const matchesMobil = fMobil === "Semua" || d.mobil === fMobil;
-    const matchesRit = fRit === "Semua" || (d.rit || "Rit 1") === fRit;
-    const matchesStatus = fStatus === "Semua" || d.status === fStatus;
-
-    return matchesSearch && matchesMobil && matchesRit && matchesStatus;
+    return (
+      matchesSearch &&
+      (fMobil === "Semua" || d.mobil === fMobil) &&
+      (fRit === "Semua" || (d.rit || "Rit 1") === fRit) &&
+      (fStatus === "Semua" || d.status === fStatus)
+    );
   });
 
-  // 5. Render Data Aktif (Dasbor / Sekolah) ke layar
   filtered.forEach((d) => {
     let originalIdx = data.findIndex((item) => item === d);
     let statusColor =
       d.status === "done"
-        ? "#22c55e"
+        ? "var(--success)"
         : d.status === "holiday"
           ? "#64748b"
-          : "#f59e0b";
+          : "var(--warning)";
+
     let pkT = hitung(d.pk_val.i, d.pk_val.s);
     let pbT = hitung(d.pb_val.i, d.pb_val.s);
     let mobilClass = d.mobil === "Mobil 1" ? "tag-m1" : "tag-m2";
     let ritLabel = d.rit || "Rit 1";
 
-    let rekLabel = "";
-    let borderStyle = "";
+    let rekLabel = d._isSiap
+      ? `<span style="background:var(--success); color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:5px;">SIAP</span>`
+      : "";
 
-    // Cek properti _isSiap yang sudah dihitung di atas
-    if (d._isSiap) {
-      rekLabel = `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:5px;">SIAP</span>`;
-      borderStyle = "border: 2px solid #22c55e;";
-    }
+    // Semua kartu menggunakan background abu-abu terang default
+    let itemBg = "#f8fafc";
+
+    // Garis border default abu-abu, tapi kalau stok "SIAP" berubah jadi hijau
+    let itemBorder = d._isSiap ? "var(--success)" : "#e2e8f0";
+
+    let boxStyle = `background-color: ${itemBg}; border: 2px solid ${itemBorder};`;
+    // Latar belakang kuning lembut untuk pending, hijau untuk done, abu-abu untuk holiday
+    let totalBgColor =
+      d.status === "done"
+        ? "var(--success)"
+        : d.status === "holiday"
+          ? "#64748b"
+          : "#fef08a";
+
+    // Warna teks: hitam/coklat tua khusus untuk pending agar kontras dengan kuning, putih untuk status lain
+    let totalTextColor = d.status === "pending" ? "#713f12" : "#ffffff";
+
+    let actionHTML = `
+      <div class="action-dropdown-container">
+          <button class="btn-action-trigger" onclick="toggleItemMenu(this)">⋮</button>
+          <div class="item-dropdown-menu">
+              <div class="item-dropdown-btn" style="color: #64748b;" onclick="editSekolah(${originalIdx})">Edit</div>
+              ${
+                d.status === "pending"
+                  ? `<div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'done')">Selesai</div>
+                     <div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'holiday')">Libur</div>`
+                  : `<div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'pending')">Proses</div>`
+              }
+              <div class="item-dropdown-btn delete" style="color: var(--danger);" onclick="confirmHapus(${originalIdx})">Hapus</div>
+          </div>
+      </div>
+    `;
+
+    // Mengubah kata-kata status agar lebih mudah dipahami
+    let labelStatus = "PROSES";
+    if (d.status === "done") labelStatus = "SELESAI";
+    else if (d.status === "holiday") labelStatus = "LIBUR";
+
+    let badgeHTML =
+      d.status === "pending"
+        ? `<span class="badge" style="background:${statusColor}; color: white; display: inline-flex; align-items: center; gap: 4px;"><span style="display:inline-block; width:8px; height:8px; border:2px solid rgba(255,255,255,0.4); border-top-color:white; border-radius:50%; animation: putar 1s linear infinite;"></span>${labelStatus}</span>`
+        : `<span class="badge" style="background:${statusColor}; color: white;">${labelStatus}</span>`;
+
+    let isPkDone = d.status === "done" || d.pk_done;
+    let isPbDone = d.status === "done" || d.pb_done;
+
+    let pkBoxStyle = isPkDone
+      ? "background:#f0fdf4; color:#166534;"
+      : "background:#fef2f2; color:#b91c1c;";
+    let pkTextStrike =
+      isPkDone && pkT > 0 ? "text-decoration:line-through;" : "";
+    let pbBoxStyle = isPbDone
+      ? "background:#f0fdf4; color:#166534;"
+      : "background:#f0f9ff; color:#0369a1;";
+    let pbTextStrike =
+      isPbDone && pbT > 0 ? "text-decoration:line-through;" : "";
 
     listActive.innerHTML += `
-            <div class="item ${d.status}" style="${borderStyle}">
-                <div class="action">
-                    <button class="smallbtn" style="background:#3b82f6" onclick="editSekolah(${originalIdx})">EDIT</button>
-                    ${
-                      d.status === "pending"
-                        ? `<button class="smallbtn" style="background:#f59e0b" onclick="setStatus(${originalIdx}, 'holiday')">LBR</button>
-                         <button class="smallbtn" style="background:#22c55e" onclick="setStatus(${originalIdx}, 'done')">DONE</button>`
-                        : `<button class="smallbtn" style="background:#64748b" onclick="setStatus(${originalIdx}, 'pending')">REDO</button>`
-                    }
-                    <button class="smallbtn" style="background:#ef4444" onclick="confirmHapus(${originalIdx})">DEL</button>
-                </div>
-                <div style="margin-bottom:5px">
-                    <span class="badge" style="background:${statusColor}">${d.status.toUpperCase()}</span>
+            <div class="item ${d.status}" style="${boxStyle}">
+                <div class="action">${actionHTML}</div>
+                <div style="margin-bottom:5px; padding-right: 25px;">
+                    ${badgeHTML}
                     <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
                     <span class="rit-tag">${ritLabel.toUpperCase()}</span>
                     ${rekLabel}
                 </div>
-                <span class="item-title" style="display:block; font-weight:800; margin-bottom:8px;">${d.nama}</span>
-                
+                <span class="item-title" style="display:block; font-weight:800; margin-bottom:8px; padding-right: 20px;">${d.nama}</span>
                 <div style="display:flex; flex-direction:column; gap:4px">
-                    <div style="background:#fef2f2; padding:4px 8px; border-radius:6px; display:flex; justify-content:space-between; font-size:11px; color:#b91c1c; border:1px solid #fee2e2;">
-                        <b>PK</b> <span>${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
+                    <div style="${pkBoxStyle} padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px;">
+                        <b style="${pkTextStrike}">PK</b> <span style="${pkTextStrike}">${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
                     </div>
-                    <div style="background:#f0f9ff; padding:4px 8px; border-radius:6px; display:flex; justify-content:space-between; font-size:11px; color:#0369a1; border:1px solid #e0f2fe;">
-                        <b>PB</b> <span>${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
+                    <div style="${pbBoxStyle} padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px;">
+                        <b style="${pbTextStrike}">PB</b> <span style="${pbTextStrike}">${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
                     </div>
-                    <div style="background:#3b82f6; color:white; text-align:center; padding:3px; border-radius:6px; font-weight:900; font-size:11px;">
+                    <div style="background:${totalBgColor}; color:${totalTextColor}; text-align:center; padding:5px; border-radius:8px; font-weight:900; font-size:11px;">
                         TOTAL: ${d.total}
                     </div>
                 </div>
             </div>`;
   });
 
-  // 6. Render Histori ke layar
   historyData.forEach((d, i) => {
     let pkT = hitung(d.pk_val.i, d.pk_val.s);
     let pbT = hitung(d.pb_val.i, d.pb_val.s);
     let mobilClass = d.mobil === "Mobil 1" ? "tag-m1" : "tag-m2";
     let ritLabel = d.rit || "Rit 1";
 
+    let actionHTML = `
+      <div class="action-dropdown-container">
+          <button class="btn-action-trigger" onclick="toggleItemMenu(this)">⋮</button>
+          <div class="item-dropdown-menu">
+              <div class="item-dropdown-btn" style="color: var(--success);" onclick="restore(${i})">Restore Data</div>
+              <div class="item-dropdown-btn delete" onclick="confirmHapusHist(${i})">Hapus Permanen</div>
+          </div>
+      </div>
+    `;
+
     listHist.innerHTML += `
             <div class="item holiday" style="opacity: 0.85;">
-                <div class="action">
-                    <button class="smallbtn" style="background:#10b981;" onclick="restore(${i})">RESTORE</button>
-                    <button class="smallbtn" style="background:#ef4444;" onclick="confirmHapusHist(${i})">DEL</button>
-                </div>
+                <div class="action">${actionHTML}</div>
                 <div style="margin-bottom:5px">
-                    <span class="badge" style="background:#fee2e2; color:#ef4444; border:1px solid #fecaca;">TERHAPUS</span>
+                    <span class="badge" style="background:#fee2e2; color:var(--danger); border:1px solid #fecaca;">TERHAPUS</span>
                     <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
                     <span class="rit-tag">${ritLabel.toUpperCase()}</span>
                 </div>
                 <span class="item-title" style="display:block; font-weight:800; margin-bottom:8px; color:#475569;">${d.nama}</span>
-                
                 <div style="display:flex; flex-direction:column; gap:4px">
-                    <div style="background:#fef2f2; padding:4px 8px; border-radius:6px; display:flex; justify-content:space-between; font-size:11px; color:#b91c1c; border:1px solid #fee2e2;">
+                    <div style="background:#fef2f2; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px; color:#b91c1c;">
                         <b>PK</b> <span>${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
                     </div>
-                    <div style="background:#f0f9ff; padding:4px 8px; border-radius:6px; display:flex; justify-content:space-between; font-size:11px; color:#0369a1; border:1px solid #e0f2fe;">
+                    <div style="background:#f0f9ff; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px; color:#0369a1;">
                         <b>PB</b> <span>${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
-                    </div>
-                    <div style="background:#e2e8f0; color:#475569; text-align:center; padding:3px; border-radius:6px; font-weight:900; font-size:11px;">
-                        TOTAL: ${d.total}
                     </div>
                 </div>
             </div>`;
@@ -439,19 +568,14 @@ function render() {
 /* =========================================
    ACTIONS (TAMBAH & EDIT DATA)
    ========================================= */
-
-// --- 1. Fungsi Buka/Tutup Modal Tambah (Baru) ---
 function openTambahModal() {
   document.getElementById("tambahModal").style.display = "flex";
-  // Otomatis fokus ke input nama agar user bisa langsung mengetik
   setTimeout(() => document.getElementById("nama").focus(), 100);
 }
-
 function closeTambahModal() {
   document.getElementById("tambahModal").style.display = "none";
 }
 
-// --- 2. Fungsi Tambah (Sudah Diperbarui) ---
 function tambah() {
   let nama = document.getElementById("nama").value.trim().toUpperCase();
   if (!nama) return;
@@ -465,16 +589,14 @@ function tambah() {
   let tendiki = document.getElementById("tendik_i").value;
   let tendiks = document.getElementById("tendik_s")
     ? document.getElementById("tendik_s").value
-    : 0; // Jaga-jaga
-
+    : 0;
   let mode = document.querySelector('input[name="inputMode"]:checked').value;
 
-  let pkUtama = parseInt(pki) || 0;
-  let pbUtama = parseInt(pbi) || 0;
-  let tendikUtama = parseInt(tendiki) || 0;
-  let pkTotalEceran = parseInt(pks) || 0;
-  let pbTotalEceran = parseInt(pbs) || 0;
-
+  let pkUtama = parseInt(pki) || 0,
+    pbUtama = parseInt(pbi) || 0,
+    tendikUtama = parseInt(tendiki) || 0;
+  let pkTotalEceran = parseInt(pks) || 0,
+    pbTotalEceran = parseInt(pbs) || 0;
   let pkHitung, pbHitung;
 
   if (mode === "ikat") {
@@ -483,21 +605,20 @@ function tambah() {
   } else {
     pkHitung = pkUtama;
     pbHitung = pbUtama + tendikUtama;
-
-    pkTotalEceran = pkUtama % 5;
-    pkUtama = Math.floor(pkUtama / 5);
-
+    pkTotalEceran = pkHitung % 5;
+    pkUtama = Math.floor(pkHitung / 5);
     pbTotalEceran = pbHitung % 5;
     pbUtama = Math.floor(pbHitung / 5);
   }
 
   let editIdxVal = document.getElementById("editIdx").value;
-
   let payload = {
     nama,
     mobil,
     rit,
     status: "pending",
+    pk_done: false,
+    pb_done: false,
     total: pkHitung + pbHitung,
     pk_val: { i: pkUtama, s: pkTotalEceran },
     pb_val: { i: pbUtama, s: pbTotalEceran },
@@ -506,6 +627,8 @@ function tambah() {
   if (editIdxVal !== "") {
     let idx = parseInt(editIdxVal);
     payload.status = data[idx].status;
+    payload.pk_done = data[idx].pk_done;
+    payload.pb_done = data[idx].pb_done;
     data[idx] = payload;
     document.getElementById("editIdx").value = "";
     document.getElementById("btnSimpan").innerText = "SIMPAN DATA";
@@ -513,7 +636,6 @@ function tambah() {
     data.unshift(payload);
   }
 
-  // BUG FIX: tambahkan "tendik_s" ke dalam daftar reset form ini
   ["nama", "pk_i", "pk_s", "pb_i", "pb_s", "tendik_i", "tendik_s"].forEach(
     (id) => {
       const el = document.getElementById(id);
@@ -522,17 +644,10 @@ function tambah() {
   );
 
   update();
-
-  // LOGIKA BARU: Tutup modal dan tampilkan pesan sukses
   closeTambahModal();
   showSnackbar("Data Sekolah Disimpan");
 }
 
-/* =========================================
-   FUNGSI POP-UP MODAL EDIT SEKOLAH (BARU & DIPERBAIKI)
-   ========================================= */
-
-// 1. Fungsi untuk mengganti placeholder (Ikat / Porsi) di dalam Modal Edit
 function toggleModalPlaceholder() {
   let modeNode = document.querySelector('input[name="modalInputMode"]:checked');
   if (!modeNode) return;
@@ -543,7 +658,6 @@ function toggleModalPlaceholder() {
   const eceranElements = document.querySelectorAll(
     "#modalPk_s, #modalPb_s, .modal-plus-sign",
   );
-
   let idx = document.getElementById("modalEditIdx").value;
   let item = data[idx];
 
@@ -551,8 +665,6 @@ function toggleModalPlaceholder() {
     pkInput.placeholder = "PK (Total Porsi)";
     pbInput.placeholder = "PB (Total Porsi)";
     eceranElements.forEach((el) => (el.style.display = "none"));
-
-    // Konversi otomatis ke total porsi saat tombol ditekan
     if (item && item.pk_val) {
       pkInput.value = item.pk_val.i * 5 + parseInt(item.pk_val.s || 0);
       pbInput.value = item.pb_val.i * 5 + parseInt(item.pb_val.s || 0);
@@ -561,8 +673,6 @@ function toggleModalPlaceholder() {
     pkInput.placeholder = "PK (Ikat)";
     pbInput.placeholder = "PB (Ikat)";
     eceranElements.forEach((el) => (el.style.display = "inline-block"));
-
-    // Kembalikan ke format Ikat + Sisa asli
     if (item && item.pk_val) {
       pkInput.value = item.pk_val.i;
       document.getElementById("modalPk_s").value = item.pk_val.s;
@@ -572,26 +682,20 @@ function toggleModalPlaceholder() {
   }
 }
 
-// 2. Fungsi untuk membuka modal Edit
 function editSekolah(idx) {
   let item = data[idx];
-
   document.getElementById("modalEditIdx").value = idx;
   document.getElementById("modalNama").value = item.nama;
-
   document.querySelectorAll('input[name="modalMobil"]').forEach((radio) => {
     radio.checked = radio.value === item.mobil;
   });
-
   document.querySelectorAll('input[name="modalRitSelect"]').forEach((radio) => {
     radio.checked = radio.value === (item.rit || "Rit 1");
   });
-
   document.querySelectorAll('input[name="modalStatus"]').forEach((radio) => {
     radio.checked = radio.value === item.status;
   });
 
-  // Reset radio button ke mode Ikat secara default
   let modeRadios = document.querySelectorAll('input[name="modalInputMode"]');
   if (modeRadios.length > 0) modeRadios[0].checked = true;
 
@@ -600,22 +704,16 @@ function editSekolah(idx) {
   document.getElementById("modalPb_i").value = item.pb_val.i;
   document.getElementById("modalPb_s").value = item.pb_val.s;
 
-  // Pastikan UI menyesuaikan state mode Ikat
   toggleModalPlaceholder();
-
   document.getElementById("editSekolahModal").style.display = "flex";
 }
-
-// 3. Fungsi untuk menutup modal Edit (tidak berubah)
 function closeEditModal() {
   document.getElementById("editSekolahModal").style.display = "none";
 }
 
-// 4. Fungsi menyimpan perubahan dari Modal
 function simpanPerubahanModal() {
   let idx = parseInt(document.getElementById("modalEditIdx").value);
   if (isNaN(idx)) return;
-
   let nama = document.getElementById("modalNama").value.trim().toUpperCase();
   if (!nama) return;
 
@@ -626,45 +724,44 @@ function simpanPerubahanModal() {
   let status = document.querySelector(
     'input[name="modalStatus"]:checked',
   ).value;
-
   let modeNode = document.querySelector('input[name="modalInputMode"]:checked');
   let mode = modeNode ? modeNode.value : "ikat";
 
-  let pki = parseInt(document.getElementById("modalPk_i").value) || 0;
-  let pks = parseInt(document.getElementById("modalPk_s").value) || 0;
-  let pbi = parseInt(document.getElementById("modalPb_i").value) || 0;
-  let pbs = parseInt(document.getElementById("modalPb_s").value) || 0;
+  let pki = parseInt(document.getElementById("modalPk_i").value) || 0,
+    pks = parseInt(document.getElementById("modalPk_s").value) || 0;
+  let pbi = parseInt(document.getElementById("modalPb_i").value) || 0,
+    pbs = parseInt(document.getElementById("modalPb_s").value) || 0;
 
-  let pkHitung, pbHitung;
-  let pkUtama, pkTotalEceran, pbUtama, pbTotalEceran;
-
+  let pkHitung, pbHitung, pkUtama, pkTotalEceran, pbUtama, pbTotalEceran;
   if (mode === "ikat") {
-    // Jika input format ikat
     pkHitung = pki * 5 + pks;
     pbHitung = pbi * 5 + pbs;
-
     pkUtama = pki;
     pkTotalEceran = pks;
     pbUtama = pbi;
     pbTotalEceran = pbs;
   } else {
-    // Jika input format porsi langsung (dari input pertama, nilai sisa tidak dihiraukan)
     pkHitung = pki;
     pbHitung = pbi;
-
-    // Sistem otomatis memecahnya menjadi format ikat untuk database
     pkTotalEceran = pkHitung % 5;
     pkUtama = Math.floor(pkHitung / 5);
-
     pbTotalEceran = pbHitung % 5;
     pbUtama = Math.floor(pbHitung / 5);
   }
+
+  let prev = data[idx];
+  let new_pk_done =
+    status === "done" ? true : status === "pending" ? prev.pk_done : false;
+  let new_pb_done =
+    status === "done" ? true : status === "pending" ? prev.pb_done : false;
 
   data[idx] = {
     nama,
     mobil,
     rit,
     status,
+    pk_done: new_pk_done,
+    pb_done: new_pb_done,
     total: pkHitung + pbHitung,
     pk_val: { i: pkUtama, s: pkTotalEceran },
     pb_val: { i: pbUtama, s: pbTotalEceran },
@@ -674,25 +771,38 @@ function simpanPerubahanModal() {
   update();
 }
 
-function closeEditModal() {
-  document.getElementById("editSekolahModal").style.display = "none";
-}
-
 function setStatus(i, s) {
-  let oldStatus = data[i].status;
+  let oldStatus = data[i].status,
+    oldPk = data[i].pk_done,
+    oldPb = data[i].pb_done;
   data[i].status = s;
 
-  // Simpan jejak status lama untuk tombol UNDO
-  deletedItem = { type: "status", index: i, content: oldStatus };
-  update();
+  if (s === "done") {
+    data[i].pk_done = true;
+    data[i].pb_done = true;
+  } else if (s === "pending") {
+    // Direset ke false dulu, tapi nanti syncStatus di update() akan benerin jika ada yang muatan 0
+    data[i].pk_done = false;
+    data[i].pb_done = false;
+  }
 
-  // Munculkan pop up snackbar
+  deletedItem = {
+    type: "status",
+    index: i,
+    content: { status: oldStatus, pk: oldPk, pb: oldPb },
+  };
+  update();
   let txt = s === "done" ? "SELESAI" : s === "holiday" ? "LIBUR" : "PENDING";
   showSnackbar(`${txt}`);
 }
 
 function restore(i) {
-  data.unshift({ ...historyData[i], status: "pending" });
+  data.unshift({
+    ...historyData[i],
+    status: "pending",
+    pk_done: false,
+    pb_done: false,
+  });
   historyData.splice(i, 1);
   update();
 }
@@ -715,22 +825,21 @@ function showSnackbar(msg) {
 function undoAction() {
   if (deletedItem) {
     if (deletedItem.type === "active") {
-      // Pembatalan Hapus Sekolah
       data.splice(deletedItem.index, 0, deletedItem.content);
       historyData.shift();
     } else if (deletedItem.type === "status") {
-      // Pembatalan 1 Sekolah Selesai
-      data[deletedItem.index].status = deletedItem.content;
+      data[deletedItem.index].status = deletedItem.content.status;
+      data[deletedItem.index].pk_done = deletedItem.content.pk;
+      data[deletedItem.index].pb_done = deletedItem.content.pb;
     } else if (deletedItem.type === "bulk_status") {
-      // Pembatalan 1 Rit Penuh Selesai
       deletedItem.indices.forEach((i) => {
         data[i].status = deletedItem.content;
+        data[i].pk_done = false;
+        data[i].pb_done = false;
       });
     } else {
-      // Pembatalan Hapus Permanen di Histori
       historyData.splice(deletedItem.index, 0, deletedItem.content);
     }
-
     document.getElementById("snackbar").className = "snackbar";
     deletedItem = null;
     update();
@@ -751,12 +860,10 @@ function openModal(icon, title, msg, color, onConfirm) {
   };
   m.style.display = "flex";
 }
-
 function closeModal() {
   const m = document.getElementById("customModal");
   if (m) m.style.display = "none";
 }
-
 function confirmHapus(i) {
   openModal("🗑️", "Hapus", "Hapus sekolah ini?", "#ef4444", () => {
     deletedItem = { type: "active", index: i, content: data[i] };
@@ -766,7 +873,6 @@ function confirmHapus(i) {
     showSnackbar("Sekolah dihapus");
   });
 }
-
 function confirmHapusHist(i) {
   openModal("🔥", "Hapus", "Hapus permanen?", "#ef4444", () => {
     deletedItem = { type: "history", index: i, content: historyData[i] };
@@ -775,7 +881,6 @@ function confirmHapusHist(i) {
     showSnackbar("Riwayat dihapus");
   });
 }
-
 function confirmClearHistory() {
   openModal(
     "🚨",
@@ -791,54 +896,47 @@ function confirmClearHistory() {
 }
 
 document.addEventListener("touchstart", function () {}, true);
-
 document.addEventListener(
   "touchstart",
   function (e) {
-    if (e.target.closest(".smallbtn")) {
+    if (e.target.closest(".smallbtn"))
       e.target.closest(".smallbtn").classList.add("tekan");
-    }
   },
   { passive: true },
 );
-
 document.addEventListener(
   "touchstart",
   function (e) {
     let el = e.target.closest(
       "button, .smallbtn, .btn-primary-v2, .nav-item, .rit-select-box",
     );
-    if (el) {
-      el.classList.add("tekan");
-    }
+    if (el) el.classList.add("tekan");
   },
   { passive: true },
 );
-
 document.addEventListener(
   "touchend",
   function (e) {
     let el = e.target.closest(
       "button, .smallbtn, .btn-primary-v2, .nav-item, .rit-select-box",
     );
-    if (el) {
+    if (el)
       setTimeout(() => {
         el.classList.remove("tekan");
       }, 100);
-    }
   },
   { passive: true },
 );
 
 function togglePlaceholder() {
   let mode = document.querySelector('input[name="inputMode"]:checked').value;
-  const pkInput = document.getElementById("pk_i");
-  const pbInput = document.getElementById("pb_i");
-  const tendikInput = document.getElementById("tendik_i");
-  const rowTendik = document.getElementById("row_tendik");
-  const eceranElements = document.querySelectorAll(
-    "#pk_s, #pb_s, #tendik_s, .plus-sign",
-  );
+  const pkInput = document.getElementById("pk_i"),
+    pbInput = document.getElementById("pb_i"),
+    tendikInput = document.getElementById("tendik_i");
+  const rowTendik = document.getElementById("row_tendik"),
+    eceranElements = document.querySelectorAll(
+      "#pk_s, #pb_s, #tendik_s, .plus-sign",
+    );
 
   if (mode === "porsi") {
     if (pkInput) pkInput.placeholder = "PK (Porsi)";
@@ -855,19 +953,21 @@ function togglePlaceholder() {
 }
 
 function shareRitSummary(ritName) {
-  // Ambil data sekolah berdasarkan Rit yang dipilih
   let sekolahDiRitIni = data.filter((d) => (d.rit || "Rit 1") === ritName);
-
   let text = `*Jadwal Pengiriman: ${ritName.toUpperCase()}*\n\n`;
 
   sekolahDiRitIni.forEach((s) => {
-    let pk = hitung(s.pk_val.i, s.pk_val.s);
-    let pb = hitung(s.pb_val.i, s.pb_val.s);
+    let pk = hitung(s.pk_val.i, s.pk_val.s),
+      pb = hitung(s.pb_val.i, s.pb_val.s);
     let statusTag = s.status === "done" ? "(✅ Selesai)" : "";
+    if (s.status !== "done") {
+      if (s.pk_done && pk > 0 && (!s.pb_done || pb === 0))
+        statusTag = "(✅ PK Selesai)";
+      if (!s.pk_done && s.pb_done && pb > 0) statusTag = "(✅ PB Selesai)";
+    }
     text += `• ${s.nama} ${statusTag}\n  PK: ${pk} | PB: ${pb}\n`;
   });
 
-  // Hitung total untuk Rit ini
   let totPK = sekolahDiRitIni.reduce(
     (sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s),
     0,
@@ -876,44 +976,66 @@ function shareRitSummary(ritName) {
     (sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s),
     0,
   );
-
   text += `\n-----------------------\n*TOTAL MUATAN:*\nPK: ${totPK}\nPB: ${totPB}`;
 
-  // Fungsi Share (Native HP atau WhatsApp)
   if (navigator.share) {
     navigator
-      .share({
-        title: "Jadwal Kirim",
-        text: text,
-      })
-      .catch((err) => console.log("Batal share"));
+      .share({ title: "Jadwal Kirim", text: text })
+      .catch(() => console.log("Batal share"));
   } else {
-    // Fallback untuk browser yang tidak mendukung share API
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
   }
 }
+
+/* =========================================
+   MODAL INFO SEKOLAH & TOMBOL SELESAI PARSIAL
+   ========================================= */
 function showSchoolInfo(idx) {
   let s = data[idx];
   if (!s) return;
 
   let pkT = hitung(s.pk_val.i, s.pk_val.s);
   let pbT = hitung(s.pb_val.i, s.pb_val.s);
-
-  // Warna badge status
   let statusColor =
     s.status === "done"
       ? "#22c55e"
       : s.status === "holiday"
         ? "#64748b"
         : "#f59e0b";
+  let isPkDone = s.status === "done" || s.pk_done;
+  let isPbDone = s.status === "done" || s.pb_done;
+
+  // Render Box PK (Abaikan style selesai jika pkT = 0)
+  let pkStatusMark =
+    isPkDone && pkT > 0
+      ? `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:6px;">✅ SELESAI</span>`
+      : "";
+  let pkBg = isPkDone && pkT > 0 ? "#f0fdf4" : "#fff1f2";
+  let pkBorder = isPkDone && pkT > 0 ? "#bbf7d0" : "#fecaca";
+  let pkColorText = isPkDone && pkT > 0 ? "#166534" : "#b91c1c";
+  let pkStrike = isPkDone && pkT > 0 ? "text-decoration: line-through;" : "";
+
+  // Render Box PB
+  let pbStatusMark =
+    isPbDone && pbT > 0
+      ? `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:6px;">✅ SELESAI</span>`
+      : "";
+  let pbBg = isPbDone && pbT > 0 ? "#f0fdf4" : "#f0f9ff";
+  let pbBorder = isPbDone && pbT > 0 ? "#bbf7d0" : "#bae6fd";
+  let pbColorText = isPbDone && pbT > 0 ? "#166534" : "#0369a1";
+  let pbStrike = isPbDone && pbT > 0 ? "text-decoration: line-through;" : "";
 
   let btnSelesaiHTML = "";
   if (s.status !== "done") {
-    btnSelesaiHTML = `
-      <button onclick="setSchoolDoneFromModal(${idx})" style="width: 100%; margin-top: 15px; padding: 12px; background: #22c55e; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: pointer; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2);">
-          SELESAI
-      </button>
-    `;
+    btnSelesaiHTML = `<div style="display: flex; gap: 8px; margin-top: 15px;">`;
+    // Tombol hanya muncul jika PK/PB nya lebih dari 0
+    if (!s.pk_done && pkT > 0)
+      btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'PK')" style="flex:1; padding:10px; background:#ef4444; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;">SELESAI PK</button>`;
+    if (!s.pb_done && pbT > 0)
+      btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'PB')" style="flex:1; padding:10px; background:#0ea5e9; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;">SELESAI PB</button>`;
+
+    btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'ALL')" style="flex:1; padding:10px; background:#22c55e; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; box-shadow:0 4px 6px rgba(34,197,94,0.2);">SELESAI</button>
+    </div>`;
   }
 
   document.getElementById("infoModalTitle").innerText = s.nama;
@@ -928,80 +1050,98 @@ function showSchoolInfo(idx) {
             </div>
         </div>
 
-        <!-- Box PK -->
-        <div style="background: #fff1f2; padding: 12px; border-radius: 12px; border: 1px solid #fecaca; margin-bottom: 10px;">
-            <div style="font-size: 10px; font-weight: 800; color: #991b1b; margin-bottom: 4px; text-transform: uppercase;">PK</div>
+        <div style="background: ${pkBg}; padding: 12px; border-radius: 12px; border: 1px solid ${pkBorder}; margin-bottom: 10px; position:relative;">
+            <div style="font-size: 10px; font-weight: 800; color: ${pkColorText}; margin-bottom: 4px; text-transform: uppercase;">PK ${pkStatusMark}</div>
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                <span style="font-size: 20px; font-weight: 900; color: #b91c1c;">${pkT}</span>
-                <span style="font-size: 12px; font-weight: 600; color: #b91c1c;">${s.pk_val.i} ikat + ${s.pk_val.s}</span>
+                <span style="font-size: 20px; font-weight: 900; color: ${pkColorText}; ${pkStrike}">${pkT}</span>
+                <span style="font-size: 12px; font-weight: 600; color: ${pkColorText}; ${pkStrike}">${s.pk_val.i} ikat + ${s.pk_val.s}</span>
             </div>
         </div>
 
-        <!-- Box PB -->
-        <div style="background: #f0f9ff; padding: 12px; border-radius: 12px; border: 1px solid #bae6fd; margin-bottom: 10px;">
-            <div style="font-size: 10px; font-weight: 800; color: #075985; margin-bottom: 4px; text-transform: uppercase;">PB</div>
+        <div style="background: ${pbBg}; padding: 12px; border-radius: 12px; border: 1px solid ${pbBorder}; margin-bottom: 10px; position:relative;">
+            <div style="font-size: 10px; font-weight: 800; color: ${pbColorText}; margin-bottom: 4px; text-transform: uppercase;">PB ${pbStatusMark}</div>
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                <span style="font-size: 20px; font-weight: 900; color: #0369a1;">${pbT}</span>
-                <span style="font-size: 12px; font-weight: 600; color: #0369a1;">${s.pb_val.i} ikat + ${s.pb_val.s}</span>
+                <span style="font-size: 20px; font-weight: 900; color: ${pbColorText}; ${pbStrike}">${pbT}</span>
+                <span style="font-size: 12px; font-weight: 600; color: ${pbColorText}; ${pbStrike}">${s.pb_val.i} ikat + ${s.pb_val.s}</span>
             </div>
         </div>
 
-        <!-- Box Total -->
         <div style="padding: 12px; background: #1e293b; border-radius: 12px; text-align: center; color: white;">
             <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Total Keseluruhan</div>
             <div style="font-size: 32px; font-weight: 900; color: #f8fafc; margin-top: 2px;">${s.total}</div>
         </div>
-        
-        <!-- TOMBOL SELESAI (Akan muncul jika belum selesai) -->
         ${btnSelesaiHTML}
     `;
-
   document.getElementById("infoModal").style.display = "flex";
 }
 
-// Tambahkan fungsi pembantunya di bawahnya
-function setSchoolDoneFromModal(idx) {
-  setStatus(idx, "done"); // Menggunakan fungsi setStatus yang sudah Anda buat
-  closeInfoModal(); // Tutup pop-up
+function setSchoolStatusFromModal(idx, type) {
+  let s = data[idx];
+
+  // 1. REKAM STATUS LAMA SEBELUM DIUBAH (UNTUK UNDO)
+  let oldStatus = s.status;
+  let oldPk = s.pk_done;
+  let oldPb = s.pb_done;
+
+  // 2. UBAH STATUS SESUAI TOMBOL YANG DIKLIK
+  if (type === "PK") s.pk_done = true;
+  if (type === "PB") s.pb_done = true;
+  if (type === "ALL") {
+    s.pk_done = true;
+    s.pb_done = true;
+  }
+
+  // 3. SIMPAN KE MEMORI UNDO
+  deletedItem = {
+    type: "status",
+    index: idx,
+    content: { status: oldStatus, pk: oldPk, pb: oldPb },
+  };
+
+  update(); // Otomatis memeriksa apakah keduanya true lalu diset done lewat fungsi syncStatus()
+  closeInfoModal();
+
+  let msg = type === "ALL" ? "SEMUA" : type;
+  showSnackbar(`${s.nama} - ${msg} Selesai`);
 }
 
 function closeInfoModal() {
   document.getElementById("infoModal").style.display = "none";
 }
+
 /* =========================================
-   CUSTOM DROPDOWN LOGIC
+   CUSTOM DROPDOWN & ACTION MENU LOGIC
    ========================================= */
 function toggleDropdown(el) {
-  // Tutup semua dropdown lain agar tidak tumpang tindih
   document.querySelectorAll(".dropdown-list").forEach((list) => {
     if (list !== el.nextElementSibling) list.classList.remove("show");
   });
-  // Buka/tutup dropdown yang sedang diklik
   el.nextElementSibling.classList.toggle("show");
 }
-
 function setDropdownValue(item, val, labelText) {
   let dropdown = item.closest(".custom-dropdown");
-  // 1. Ubah nilai input tersembunyinya
   dropdown.querySelector("input").value = val;
-  // 2. Ubah teks tombol dropdown-nya
   dropdown.querySelector(".dd-label").innerText = labelText;
-  // 3. Tutup daftar dropdown-nya
   dropdown.querySelector(".dropdown-list").classList.remove("show");
-  // 4. Jalankan ulang pencarian (render)
   render();
 }
+function toggleItemMenu(btn) {
+  document.querySelectorAll(".item-dropdown-menu").forEach((m) => {
+    if (m !== btn.nextElementSibling) m.classList.remove("show");
+  });
+  btn.nextElementSibling.classList.toggle("show");
+}
 
-// Tutup dropdown otomatis jika layar (di luar area dropdown) diklik
 document.addEventListener("click", function (e) {
-  if (!e.target.closest(".custom-dropdown")) {
-    document.querySelectorAll(".dropdown-list").forEach((list) => {
-      list.classList.remove("show");
-    });
-  }
+  if (!e.target.closest(".custom-dropdown"))
+    document
+      .querySelectorAll(".dropdown-list")
+      .forEach((list) => list.classList.remove("show"));
+  if (!e.target.closest(".action-dropdown-container"))
+    document
+      .querySelectorAll(".item-dropdown-menu")
+      .forEach((m) => m.classList.remove("show"));
 });
 
 togglePlaceholder();
-
-// Start
 update();
