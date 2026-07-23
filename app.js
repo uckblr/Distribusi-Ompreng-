@@ -141,10 +141,13 @@ function formatDetailPorsi(listData, tipe) {
   });
 
   let totalPorsiIkat = ikatTerkumpul * 5;
+  let totalSemuaPorsi = totalPorsiIkat + deretSisa.reduce((a, b) => a + b, 0); // Total mutlak
+
   let teksDetail = `${ikatTerkumpul} iket`;
   if (deretSisa.length > 0) teksDetail += ` + ${deretSisa.join(" + ")}`;
 
-  return { totalPorsiIkat, teksDetail };
+  // Kembalikan juga status apakah ini kosong/habis
+  return { totalPorsiIkat, teksDetail, isHabis: totalSemuaPorsi === 0 };
 }
 
 /* =========================================
@@ -182,6 +185,24 @@ function update() {
       }
     }
   });
+  // --- HITUNG JUMLAH SEKOLAH YANG SIAP DIKIRIM ---
+  let jumlahSekolahSiap = data.filter(
+    (d) => d._isSiap && d.status === "pending",
+  ).length;
+  const elRingkasanSiap = document.getElementById("ringkasanSiap");
+
+  if (elRingkasanSiap) {
+    if (readyVal === 0 || !readyVal) {
+      elRingkasanSiap.innerText = ""; // Sembunyikan jika input kosong/0
+    } else if (jumlahSekolahSiap > 0) {
+      elRingkasanSiap.innerText = `Stok cukup untuk ${jumlahSekolahSiap} sekolah`;
+      elRingkasanSiap.style.color = "var(--success)";
+    } else {
+      elRingkasanSiap.innerText = "Stok belum cukup untuk sekolah berikutnya";
+      elRingkasanSiap.style.color = "var(--danger)";
+    }
+  }
+
   let aktif = data.filter((d) => d.status !== "holiday");
   let done = data.filter((d) => d.status === "done");
 
@@ -250,15 +271,29 @@ function update() {
   let pkPending = formatDetailPorsi(pkPendingData, "PK");
   let pbPending = formatDetailPorsi(pbPendingData, "PB");
 
+  // --- TAMPILAN VIEW PK ---
   setTxt("totalPKView", pkTot);
   setTxt("pkDoneView", pkDone);
-  setTxt("pkSisaView", pkPending.totalPorsiIkat);
-  setTxt("pkDetailIkat", pkPending.teksDetail);
 
+  if (pkPending.isHabis && pkTot > 0) {
+    setTxt("pkSisaView", "SELESAI");
+    setTxt("pkDetailIkat", "Semua PK terkirim");
+  } else {
+    setTxt("pkSisaView", pkPending.totalPorsiIkat);
+    setTxt("pkDetailIkat", pkPending.teksDetail);
+  }
+
+  // --- TAMPILAN VIEW PB (VERSI RAPI) ---
   setTxt("totalPBView", pbTot);
   setTxt("pbDoneView", pbDone);
-  setTxt("pbSisaView", pbPending.totalPorsiIkat);
-  setTxt("pbDetailIkat", pbPending.teksDetail);
+
+  if (pbPending.isHabis && pbTot > 0) {
+    setTxt("pbSisaView", "SELESAI");
+    setTxt("pbDetailIkat", "Semua PB terkirim");
+  } else {
+    setTxt("pbSisaView", pbPending.totalPorsiIkat);
+    setTxt("pbDetailIkat", pbPending.teksDetail);
+  }
 
   renderRitBreakdown(aktif);
 
@@ -273,7 +308,20 @@ function update() {
       Math.min(pSiap, 100 - pKirim) + "%";
   }
 
-  setTxt("progressPercent", Math.round(pKirim) + "%");
+  // --- LOGIKA DINAMIS UNTUK TEKS PROGRESS BAR ---
+  const elProgressPercent = document.getElementById("progressPercent");
+  if (elProgressPercent) {
+    if (targetTotal > 0 && Math.round(pKirim) >= 100) {
+      // Jika sudah 100% atau lebih
+      elProgressPercent.innerText = "Selesai";
+      elProgressPercent.style.fontSize = "11px"; // Menyesuaikan ukuran jika teksnya lebih panjang
+      elProgressPercent.style.fontWeight = "900";
+    } else {
+      // Jika masih berjalan (menampilkan angka persentase)
+      elProgressPercent.innerText = Math.round(pKirim) + "%";
+      elProgressPercent.style.fontSize = ""; // Reset ukuran font
+    }
+  }
 
   // --- LOGIKA DINAMIS UNTUK STATUS TERSEDIA ---
   let sisaTargetReal = targetTotal - kirimTotal;
@@ -1041,7 +1089,13 @@ function undoAction() {
         data[i].pk_done = false;
         data[i].pb_done = false;
       });
-    } else {
+    }
+    // --- TAMBAHAN KONDISI UNDO BARU DI SINI ---
+    else if (deletedItem.type === "bulk_reset_done") {
+      data = deletedItem.content; // Kembalikan seluruh data ke kondisi awal sebelum reset
+    }
+    // -----------------------------------------
+    else {
       historyData.splice(deletedItem.index, 0, deletedItem.content);
     }
     document.getElementById("snackbar").className = "snackbar";
@@ -1262,9 +1316,11 @@ function showSchoolInfo(idx) {
     </div>`;
   }
 
-  // Render SVG untuk Mobil dan Rit (Menggantikan 📍 dan 🚚)
-  const svgMapPin = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px; display: inline-block; vertical-align: text-bottom; margin-right: 2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>`;
-  const svgTrukMini = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px; display: inline-block; vertical-align: text-bottom; margin-right: 2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25v5.25m0-5.25a4.5 4.5 0 0 1 4.5 4.5m-4.5-4.5h-9a2.25 2.25 0 0 0-2.25 2.25v7.5" /></svg>`;
+  // Render SVG untuk Mobil (Kini menggunakan ikon Truk)
+  const svgMapPin = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px; display: inline-block; vertical-align: text-bottom; margin-right: 2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25v5.25m0-5.25a4.5 4.5 0 0 1 4.5 4.5m-4.5-4.5h-9a2.25 2.25 0 0 0-2.25 2.25v7.5" /></svg>`;
+
+  // Render SVG untuk Rit (Kini menggunakan ikon Rak/Box yang baru)
+  const svgTrukMini = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 14px; height: 14px; display: inline-block; vertical-align: text-bottom; margin-right: 2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 1.5v-1.5m0 0c0-.621.504-1.125 1.125-1.125m0 0h7.5" /></svg>`;
 
   document.getElementById("infoModalTitle").innerText = s.nama;
   document.getElementById("infoModalContent").innerHTML = `
@@ -1335,6 +1391,53 @@ function setSchoolStatusFromModal(idx, type) {
 
 function closeInfoModal() {
   document.getElementById("infoModal").style.display = "none";
+}
+function confirmResetAllDone() {
+  // 1. Cari indeks sekolah apa saja yang statusnya 'done'
+  let targetIndices = [];
+  data.forEach((d, idx) => {
+    if (d.status === "done") {
+      targetIndices.push(idx);
+    }
+  });
+
+  if (targetIndices.length === 0) {
+    showSnackbar(
+      "Tidak ada sekolah berstatus selesai untuk dikembalikan.",
+      false,
+    );
+    return;
+  }
+
+  // 2. Gunakan modal konfirmasi bawaan Anda untuk keamanan
+  const svgRefresh = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #f59e0b;"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99જી" /></svg>`;
+
+  openModal(
+    svgRefresh,
+    "Kembalikan ke Proses",
+    `Kembalikan ${targetIndices.length} sekolah yang selesai menjadi berstatus proses?`,
+    "#f59e0b",
+    () => {
+      // 3. Simpan state lama untuk fitur UNDO (jaga-jaga jika salah klik)
+      // Kita simpan salinan data sebelum diubah
+      let backupData = JSON.parse(JSON.stringify(data));
+
+      targetIndices.forEach((i) => {
+        data[i].status = "pending";
+        data[i].pk_done = false;
+        data[i].pb_done = false;
+      });
+
+      // Rekam untuk memori undo
+      deletedItem = {
+        type: "bulk_reset_done",
+        content: backupData,
+      };
+
+      update();
+      showSnackbar("Semua sekolah selesai dikembalikan ke proses", true);
+    },
+  );
 }
 
 /* =========================================
