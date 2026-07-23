@@ -217,7 +217,31 @@ function update() {
 
   setTxt("targetView", targetTotal);
   setTxt("terdistribusiView", kirimTotal);
-  setTxt("sisaTarget", Math.max(0, targetTotal - kirimTotal));
+  setTxt("targetView", targetTotal);
+  setTxt("terdistribusiView", kirimTotal);
+
+  // --- LOGIKA DINAMIS UNTUK SISA TARGET (VERSI LABEL) ---
+  let sisaAngka = Math.max(0, targetTotal - kirimTotal);
+  const elSisaTarget = document.getElementById("sisaTarget");
+  const elLabelSisaTarget = document.getElementById("labelSisaTarget"); // Ambil elemen label
+
+  if (elSisaTarget) {
+    if (targetTotal > 0 && sisaAngka === 0) {
+      // Jika semua sudah terkirim
+      if (elLabelSisaTarget) {
+        elLabelSisaTarget.innerText = "Semua Terdistribusi";
+        elLabelSisaTarget.style.color = "var(--success)"; // Label jadi hijau
+      }
+      elSisaTarget.innerText = ""; // Sembunyikan angka 0 agar tidak dobel
+    } else {
+      // Jika masih ada sisa atau belum ada target
+      if (elLabelSisaTarget) {
+        elLabelSisaTarget.innerText = "Belum Terdistribusi";
+        elLabelSisaTarget.style.color = ""; // Reset warna ke bawaan
+      }
+      elSisaTarget.innerText = sisaAngka; // Tampilkan sisa angka
+    }
+  }
 
   // Ambil sisa PK dan PB yang BENAR-BENAR belum selesai
   let pkPendingData = aktif.filter((d) => d.status !== "done" && !d.pk_done);
@@ -251,11 +275,34 @@ function update() {
 
   setTxt("progressPercent", Math.round(pKirim) + "%");
 
-  let kurang = targetTotal - kirimTotal - readyVal;
+  // --- LOGIKA DINAMIS UNTUK STATUS TERSEDIA ---
+  let sisaTargetReal = targetTotal - kirimTotal;
+  let selisih = sisaTargetReal - readyVal;
+
   const elKurang = document.getElementById("sisaReady");
+  const elLabel = document.getElementById("labelSisaReady");
+
+  // Menangkap nilai input asli (untuk mengecek apakah benar-benar kosong)
+  let rawReadyInput = document.getElementById("readyInput")?.value;
+
   if (elKurang) {
-    elKurang.innerText = kurang.toString();
-    elKurang.style.color = kurang > 0 ? "var(--danger)" : "var(--success)";
+    if (!rawReadyInput || rawReadyInput.trim() === "" || readyVal === 0) {
+      // 1. Kondisi Kosong / Belum Diisi
+      if (elLabel) elLabel.innerText = "Belum Tersedia";
+      elKurang.innerText = ""; // Sembunyikan angka
+      elKurang.style.color = "#64748b"; // Warna abu-abu opsional
+    } else if (selisih < 0) {
+      // 2. Kondisi Lebih (Tersedia > Belum Terdistribusi)
+      if (elLabel) elLabel.innerText = "Lebih";
+      // Math.abs() mengubah angka negatif menjadi positif (misal: -100 jadi 100)
+      elKurang.innerText = Math.abs(selisih).toString();
+      elKurang.style.color = "var(--success)";
+    } else {
+      // 3. Kondisi Kurang (Tersedia < Belum Terdistribusi)
+      if (elLabel) elLabel.innerText = "Kurang";
+      elKurang.innerText = selisih.toString();
+      elKurang.style.color = "var(--danger)";
+    }
   }
 
   localStorage.setItem("ultra_v10_data", JSON.stringify(data));
@@ -670,7 +717,13 @@ function closeTambahModal() {
 
 function tambah() {
   let nama = document.getElementById("nama").value.trim().toUpperCase();
-  if (!nama) return;
+
+  // Validasi Nama Kosong (Bisa ditambahkan peringatan snackbar juga)
+  if (!nama) {
+    showSnackbar("Gagal: Nama sekolah harus diisi!", false);
+    return;
+  }
+
   let mobil = document.querySelector('input[name="mobil"]:checked').value;
   let rit = document.querySelector('input[name="ritSelect"]:checked').value;
 
@@ -703,6 +756,16 @@ function tambah() {
     pbUtama = Math.floor(pbHitung / 5);
   }
 
+  // ==========================================
+  // BLOK VALIDASI BARU: CEK JIKA TOTALNYA 0
+  // ==========================================
+  let totalMuatan = pkHitung + pbHitung;
+  if (totalMuatan === 0) {
+    showSnackbar("Gagal: Data muatan (PK/PB) tidak boleh 0!", false);
+    return; // Hentikan proses simpan
+  }
+  // ==========================================
+
   let editIdxVal = document.getElementById("editIdx").value;
   let payload = {
     nama,
@@ -711,7 +774,7 @@ function tambah() {
     status: "pending",
     pk_done: false,
     pb_done: false,
-    total: pkHitung + pbHitung,
+    total: totalMuatan, // Pakai variabel yang sudah dihitung tadi
     pk_val: { i: pkUtama, s: pkTotalEceran },
     pb_val: { i: pbUtama, s: pbTotalEceran },
   };
@@ -806,8 +869,14 @@ function closeEditModal() {
 function simpanPerubahanModal() {
   let idx = parseInt(document.getElementById("modalEditIdx").value);
   if (isNaN(idx)) return;
+
   let nama = document.getElementById("modalNama").value.trim().toUpperCase();
-  if (!nama) return;
+
+  // Validasi Nama Kosong
+  if (!nama) {
+    showSnackbar("Gagal: Nama sekolah harus diisi!", false);
+    return;
+  }
 
   let mobil = document.querySelector('input[name="modalMobil"]:checked').value;
   let rit = document.querySelector(
@@ -825,6 +894,7 @@ function simpanPerubahanModal() {
     pbs = parseInt(document.getElementById("modalPb_s").value) || 0;
 
   let pkHitung, pbHitung, pkUtama, pkTotalEceran, pbUtama, pbTotalEceran;
+
   if (mode === "ikat") {
     pkHitung = pki * 5 + pks;
     pbHitung = pbi * 5 + pbs;
@@ -839,6 +909,15 @@ function simpanPerubahanModal() {
     pkUtama = Math.floor(pkHitung / 5);
     pbTotalEceran = pbHitung % 5;
     pbUtama = Math.floor(pbHitung / 5);
+  }
+
+  // ==========================================
+  // BLOK VALIDASI BARU: CEK JIKA TOTALNYA 0
+  // ==========================================
+  let totalMuatan = pkHitung + pbHitung;
+  if (totalMuatan === 0) {
+    showSnackbar("Gagal: Data muatan (PK/PB) tidak boleh 0!", false);
+    return; // Hentikan proses simpan perubahan
   }
 
   let prev = data[idx];
