@@ -295,6 +295,15 @@
                 oninput="update()"
                 placeholder="0"
               />
+              <div
+                id="ringkasanSiap"
+                style="
+                  font-size: 11px;
+                  color: #64748b;
+                  margin-top: 4px;
+                  font-weight: bold;
+                "
+              ></div>
             </div>
           </div>
           <div class="divider-h"></div>
@@ -425,6 +434,35 @@
               </div>
             </div>
           </div>
+          <button
+            onclick="confirmResetAllDone()"
+            title="Reset Selesai"
+            style="
+              background: #c61414;
+              color: #ffffff;
+              border: 1px solid #cbd5e1;
+              border-radius: 8px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            "
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+              style="width: 18px; height: 18px"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3"
+              />
+            </svg>
+          </button>
         </div>
 
         <div class="search-container">
@@ -653,7 +691,26 @@
     </div>
 
     <!-- TOMBOL PLUS MENGAMBANG (FAB) KINI AMAN DI LUAR -->
-    <button class="fab-add" onclick="openTambahModal()">+</button>
+    <button
+      class="fab-add"
+      onclick="openTambahModal()"
+      style="display: flex; align-items: center; justify-content: center"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="2.5"
+        stroke="currentColor"
+        style="width: 24px; height: 24px"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M12 4.5v15m7.5-7.5h-15"
+        />
+      </svg>
+    </button>
 
     <!-- MODAL TAMBAH SEKOLAH -->
     <div id="tambahModal" class="modal-overlay" onclick="closeTambahModal()">
@@ -841,7 +898,7 @@
               cursor: pointer;
             "
           >
-            ✨ Selesaikan PK Saja
+            Selesaikan PK
           </button>
           <button
             onclick="eksekusiPartialRit('pb')"
@@ -857,7 +914,7 @@
               cursor: pointer;
             "
           >
-            ✨ Selesaikan PB Saja
+            Selesaikan PB
           </button>
           <button
             onclick="eksekusiPartialRit('semua')"
@@ -874,7 +931,7 @@
               box-shadow: 0 4px 6px rgba(0, 170, 91, 0.2);
             "
           >
-            ✅ Selesaikan Keduanya (Semua)
+            Selesaikan Semua
           </button>
         </div>
 
