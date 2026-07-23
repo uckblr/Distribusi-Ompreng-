@@ -416,7 +416,7 @@ function renderRitBreakdown(aktifList) {
                         ${btnActionHTML}
                     </div>
                     <span style="font-size: 13px; font-weight: 900; color: ${isRitSelesai ? "var(--success)" : "var(--dark)"};">
-                        Total Sisa: ${totalRit}
+                        Total: ${totalRit}
                     </span>
                 </div>
                 ${progressHTML}
