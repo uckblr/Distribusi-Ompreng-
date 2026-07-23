@@ -74,8 +74,11 @@ function confirmRitDone(ritName) {
   box.style.cssText =
     "background:white; padding:24px; border-radius:16px; width:85%; max-width:320px; text-align:center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);";
 
+  // Mengganti emoji Truk dengan SVG
+  const svgTruk = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 48px; height: 48px; color: #475569; margin: 0 auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25v5.25m0-5.25a4.5 4.5 0 0 1 4.5 4.5m-4.5-4.5h-9a2.25 2.25 0 0 0-2.25 2.25v7.5" /></svg>`;
+
   box.innerHTML = `
-      <div style="font-size:32px; margin-bottom:10px;">🚚</div>
+      <div style="margin-bottom:10px; display: flex; justify-content: center;">${svgTruk}</div>
       <h3 style="margin:0 0 5px 0; font-size:18px; color:var(--dark);">Selesaikan ${ritName.toUpperCase()}</h3>
       <p style="font-size:13px; color:#64748b; margin-bottom:20px;">Tandai bagian mana yang sudah selesai dikirim?</p>
       <div style="display:flex; flex-direction:column; gap:10px;">
@@ -116,7 +119,7 @@ function processRitDone(ritName, type) {
     };
     update();
     let msgType = type === "ALL" ? "SEMUA" : type;
-    showSnackbar(`${ritName.toUpperCase()} - ${msgType} SELESAI`);
+    showSnackbar(`${ritName.toUpperCase()} - ${msgType} SELESAI`, true);
   }
 }
 
@@ -157,7 +160,28 @@ function update() {
     0,
     parseInt(document.getElementById("readyInput")?.value || 0),
   );
+  // --- LOGIKA BARU: ALOKASI STOK BERDASARKAN RIT ---
+  let stokCek = readyVal;
 
+  // Kita urutkan data khusus untuk pembagian stok (Pending didahulukan, lalu urut Rit 1, 2, dst)
+  let urutanPembagian = [...data].sort((a, b) => {
+    const statA = a.status === "pending" ? 1 : 2;
+    const statB = b.status === "pending" ? 1 : 2;
+    if (statA !== statB) return statA - statB;
+    // Jika status sama, urutkan berdasarkan rit
+    return (a.rit || "Rit 1").localeCompare(b.rit || "Rit 1");
+  });
+
+  // Bagikan stok
+  urutanPembagian.forEach((d) => {
+    d._isSiap = false;
+    if (d.status === "pending") {
+      if (stokCek >= d.total && stokCek > 0) {
+        d._isSiap = true;
+        stokCek -= d.total;
+      }
+    }
+  });
   let aktif = data.filter((d) => d.status !== "holiday");
   let done = data.filter((d) => d.status === "done");
 
@@ -239,9 +263,6 @@ function update() {
   render();
 }
 
-/* =========================================
-   LOGIKA BARU: RENDER BREAKDOWN PER RIT
-   ========================================= */
 /* =========================================
    LOGIKA BARU: RENDER BREAKDOWN PER RIT
    ========================================= */
@@ -375,7 +396,13 @@ function renderRitBreakdown(aktifList) {
             ? ` <span style="color:#166534; font-size:10px; font-weight:900;">✓PB</span>`
             : "";
 
-        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; font-weight: 700; background: #eff6ff; color: #1d4ed8; padding: 4px 8px; border-radius: 6px; border: 1px solid #bfdbfe; ${cursorStyle}">${sek.nama}${pkInd}${pbInd}</span>`;
+        // LOGIKA HIGHLIGHT SIAP (Warna Hijau Khusus)
+        let styleReady = sek._isSiap
+          ? "background: #dcfce7; color: #166534; border: 2px solid #22c55e;" // <-- Highlight hijau jika siap
+          : "background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;"; // <-- Biru biasa jika belum siap
+
+        // Ganti style bawaan dengan styleReady
+        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; ${styleReady} ${cursorStyle}">${sek.nama}${pkInd}${pbInd}</span>`;
       }
     });
 
@@ -425,20 +452,6 @@ function render() {
       return (a.rit || "Rit 1").localeCompare(b.rit || "Rit 1");
     }
     return compareStatus;
-  });
-
-  let stokCek = Math.max(
-    0,
-    parseInt(document.getElementById("readyInput")?.value || 0),
-  );
-  sorted.forEach((d) => {
-    d._isSiap = false;
-    if (d.status === "pending") {
-      if (stokCek >= d.total && stokCek > 0) {
-        d._isSiap = true;
-        stokCek -= d.total;
-      }
-    }
   });
 
   const search =
@@ -724,7 +737,7 @@ function tambah() {
 
   update();
   closeTambahModal();
-  showSnackbar("Data Sekolah Disimpan");
+  showSnackbar("Data Sekolah Disimpan", false);
 }
 
 function toggleModalPlaceholder() {
@@ -882,7 +895,8 @@ function setStatus(i, s) {
   };
   update();
   let txt = s === "done" ? "SELESAI" : s === "holiday" ? "LIBUR" : "PENDING";
-  showSnackbar(`${txt}`);
+  // Menghapus emoji centang
+  showSnackbar(`${txt}`, true);
 }
 
 function restore(i) {
@@ -899,16 +913,38 @@ function restore(i) {
 /* =========================================
    MODALS, UNDO & CLEAR HISTORIES
    ========================================= */
-function showSnackbar(msg) {
+function showSnackbar(msg, isUndoable = true) {
   const sb = document.getElementById("snackbar");
   if (!sb) return;
-  sb.querySelector("span").innerText = msg;
+
+  const textSpan = sb.querySelector("span");
+  textSpan.innerText = msg;
+
+  const undoBtn = sb.querySelector("button");
+
+  // Logika penyesuaian tata letak
+  if (isUndoable) {
+    if (undoBtn) undoBtn.style.display = "inline-block";
+
+    // Kembalikan ke layout awal (rata kiri & tombol di kanan)
+    sb.style.justifyContent = "space-between";
+    textSpan.style.textAlign = "left";
+    textSpan.style.width = "auto";
+  } else {
+    if (undoBtn) undoBtn.style.display = "none";
+
+    // Pusatkan teks karena tidak ada tombol
+    sb.style.justifyContent = "center";
+    textSpan.style.textAlign = "center";
+    textSpan.style.width = "100%";
+  }
+
   sb.className = "snackbar show";
   clearTimeout(deleteTimeout);
   deleteTimeout = setTimeout(() => {
     sb.className = "snackbar";
     deletedItem = null;
-  }, 5000);
+  }, 3000);
 }
 
 function undoAction() {
@@ -935,10 +971,12 @@ function undoAction() {
   }
 }
 
-function openModal(icon, title, msg, color, onConfirm) {
+function openModal(iconHTML, title, msg, color, onConfirm) {
   const m = document.getElementById("customModal");
   if (!m) return confirm(msg) && onConfirm();
-  document.getElementById("modalIcon").innerText = icon;
+
+  // Mengubah innerText menjadi innerHTML agar bisa merender SVG
+  document.getElementById("modalIcon").innerHTML = iconHTML;
   document.getElementById("modalTitle").innerText = title;
   document.getElementById("modalMessage").innerText = msg;
   const btn = document.getElementById("modalConfirmBtn");
@@ -953,8 +991,11 @@ function closeModal() {
   const m = document.getElementById("customModal");
   if (m) m.style.display = "none";
 }
+
 function confirmHapus(i) {
-  openModal("🗑️", "Hapus", "Hapus sekolah ini?", "#ef4444", () => {
+  // Ganti emoji tempat sampah dengan SVG
+  const svgHapus = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #ef4444;"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>`;
+  openModal(svgHapus, "Hapus", "Hapus sekolah ini?", "#ef4444", () => {
     deletedItem = { type: "active", index: i, content: data[i] };
     historyData.unshift(data[i]);
     data.splice(i, 1);
@@ -962,24 +1003,30 @@ function confirmHapus(i) {
     showSnackbar("Sekolah dihapus");
   });
 }
+
 function confirmHapusHist(i) {
-  openModal("🔥", "Hapus", "Hapus permanen?", "#ef4444", () => {
+  // Ganti emoji api dengan SVG delete history / fire
+  const svgHapusPermanen = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #ef4444;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z" /></svg>`;
+  openModal(svgHapusPermanen, "Hapus", "Hapus permanen?", "#ef4444", () => {
     deletedItem = { type: "history", index: i, content: historyData[i] };
     historyData.splice(i, 1);
     update();
-    showSnackbar("Riwayat dihapus");
+    showSnackbar("Riwayat dihapus", false);
   });
 }
+
 function confirmClearHistory() {
+  // Ganti emoji sirine dengan SVG alert triangle
+  const svgAlert = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #ef4444;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`;
   openModal(
-    "🚨",
+    svgAlert,
     "Hapus Semua",
     "Kosongkan semua riwayat permanen?",
     "#ef4444",
     () => {
       historyData = [];
       update();
-      showSnackbar("Semua riwayat dibersihkan");
+      showSnackbar("Semua riwayat dibersihkan", false);
     },
   );
 }
@@ -1048,11 +1095,12 @@ function shareRitSummary(ritName) {
   sekolahDiRitIni.forEach((s) => {
     let pk = hitung(s.pk_val.i, s.pk_val.s),
       pb = hitung(s.pb_val.i, s.pb_val.s);
-    let statusTag = s.status === "done" ? "(✅ Selesai)" : "";
+    // Mengganti emoji dengan teks karena dikirim via WA (plain text tidak membaca SVG)
+    let statusTag = s.status === "done" ? "(Selesai)" : "";
     if (s.status !== "done") {
       if (s.pk_done && pk > 0 && (!s.pb_done || pb === 0))
-        statusTag = "(✅ PK Selesai)";
-      if (!s.pk_done && s.pb_done && pb > 0) statusTag = "(✅ PB Selesai)";
+        statusTag = "(PK Selesai)";
+      if (!s.pk_done && s.pb_done && pb > 0) statusTag = "(PB Selesai)";
     }
     text += `• ${s.nama} ${statusTag}\n  PK: ${pk} | PB: ${pb}\n`;
   });
@@ -1085,19 +1133,28 @@ function showSchoolInfo(idx) {
 
   let pkT = hitung(s.pk_val.i, s.pk_val.s);
   let pbT = hitung(s.pb_val.i, s.pb_val.s);
+
   let statusColor =
     s.status === "done"
       ? "#22c55e"
       : s.status === "holiday"
         ? "#64748b"
         : "#f59e0b";
+
+  let labelStatus = "PROSES";
+  if (s.status === "done") labelStatus = "SELESAI";
+  else if (s.status === "holiday") labelStatus = "LIBUR";
+
   let isPkDone = s.status === "done" || s.pk_done;
   let isPbDone = s.status === "done" || s.pb_done;
 
-  // Render Box PK (Abaikan style selesai jika pkT = 0)
+  // Render SVG Centang
+  const svgCentang = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width: 10px; height: 10px; display: inline-block; margin-right: 2px; vertical-align: baseline;"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`;
+
+  // Render Box PK
   let pkStatusMark =
     isPkDone && pkT > 0
-      ? `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:6px;">✅ SELESAI</span>`
+      ? `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:6px; display:inline-flex; align-items:center;">${svgCentang} SELESAI</span>`
       : "";
   let pkBg = isPkDone && pkT > 0 ? "#f0fdf4" : "#fff1f2";
   let pkBorder = isPkDone && pkT > 0 ? "#bbf7d0" : "#fecaca";
@@ -1107,7 +1164,7 @@ function showSchoolInfo(idx) {
   // Render Box PB
   let pbStatusMark =
     isPbDone && pbT > 0
-      ? `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:6px;">✅ SELESAI</span>`
+      ? `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:6px; display:inline-flex; align-items:center;">${svgCentang} SELESAI</span>`
       : "";
   let pbBg = isPbDone && pbT > 0 ? "#f0fdf4" : "#f0f9ff";
   let pbBorder = isPbDone && pbT > 0 ? "#bbf7d0" : "#bae6fd";
@@ -1117,7 +1174,6 @@ function showSchoolInfo(idx) {
   let btnSelesaiHTML = "";
   if (s.status !== "done") {
     btnSelesaiHTML = `<div style="display: flex; gap: 8px; margin-top: 15px;">`;
-    // Tombol hanya muncul jika PK/PB nya lebih dari 0
     if (!s.pk_done && pkT > 0)
       btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'PK')" style="flex:1; padding:10px; background:#ef4444; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;">PK SELESAI</button>`;
     if (!s.pb_done && pbT > 0)
@@ -1127,20 +1183,24 @@ function showSchoolInfo(idx) {
     </div>`;
   }
 
+  // Render SVG untuk Mobil dan Rit (Menggantikan 📍 dan 🚚)
+  const svgMapPin = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px; display: inline-block; vertical-align: text-bottom; margin-right: 2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>`;
+  const svgTrukMini = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px; display: inline-block; vertical-align: text-bottom; margin-right: 2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25v5.25m0-5.25a4.5 4.5 0 0 1 4.5 4.5m-4.5-4.5h-9a2.25 2.25 0 0 0-2.25 2.25v7.5" /></svg>`;
+
   document.getElementById("infoModalTitle").innerText = s.nama;
   document.getElementById("infoModalContent").innerHTML = `
         <div style="text-align: center; margin-bottom: 15px;">
             <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;">
-                ${s.status.toUpperCase()}
+                ${labelStatus}
             </span>
             <div style="display: flex; justify-content: center; gap: 15px; margin-top: 10px; font-size: 12px; color: #64748b; font-weight: 700;">
-                <span>📍 ${s.mobil}</span>
-                <span>🚚 ${s.rit || "Rit 1"}</span>
+                <span style="display: flex; align-items: center;">${svgMapPin} ${s.mobil}</span>
+                <span style="display: flex; align-items: center;">${svgTrukMini} ${s.rit || "Rit 1"}</span>
             </div>
         </div>
 
         <div style="background: ${pkBg}; padding: 12px; border-radius: 12px; border: 1px solid ${pkBorder}; margin-bottom: 10px; position:relative;">
-            <div style="font-size: 10px; font-weight: 800; color: ${pkColorText}; margin-bottom: 4px; text-transform: uppercase;">PK ${pkStatusMark}</div>
+            <div style="font-size: 10px; font-weight: 800; color: ${pkColorText}; margin-bottom: 4px; text-transform: uppercase; display: flex; align-items: center;">PK ${pkStatusMark}</div>
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
                 <span style="font-size: 20px; font-weight: 900; color: ${pkColorText}; ${pkStrike}">${pkT}</span>
                 <span style="font-size: 12px; font-weight: 600; color: ${pkColorText}; ${pkStrike}">${s.pk_val.i} ikat + ${s.pk_val.s}</span>
@@ -1148,7 +1208,7 @@ function showSchoolInfo(idx) {
         </div>
 
         <div style="background: ${pbBg}; padding: 12px; border-radius: 12px; border: 1px solid ${pbBorder}; margin-bottom: 10px; position:relative;">
-            <div style="font-size: 10px; font-weight: 800; color: ${pbColorText}; margin-bottom: 4px; text-transform: uppercase;">PB ${pbStatusMark}</div>
+            <div style="font-size: 10px; font-weight: 800; color: ${pbColorText}; margin-bottom: 4px; text-transform: uppercase; display: flex; align-items: center;">PB ${pbStatusMark}</div>
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
                 <span style="font-size: 20px; font-weight: 900; color: ${pbColorText}; ${pbStrike}">${pbT}</span>
                 <span style="font-size: 12px; font-weight: 600; color: ${pbColorText}; ${pbStrike}">${s.pb_val.i} ikat + ${s.pb_val.s}</span>
@@ -1191,7 +1251,7 @@ function setSchoolStatusFromModal(idx, type) {
   closeInfoModal();
 
   let msg = type === "ALL" ? "SEMUA" : type;
-  showSnackbar(`${s.nama} - ${msg} Selesai`);
+  showSnackbar(`${s.nama} - ${msg} Selesai`, true);
 }
 
 function closeInfoModal() {
