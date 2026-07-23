@@ -74,7 +74,6 @@ function confirmRitDone(ritName) {
   box.style.cssText =
     "background:white; padding:24px; border-radius:16px; width:85%; max-width:320px; text-align:center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);";
 
-  // Mengganti emoji Truk dengan SVG
   const svgTruk = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 48px; height: 48px; color: #475569; margin: 0 auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25v5.25m0-5.25a4.5 4.5 0 0 1 4.5 4.5m-4.5-4.5h-9a2.25 2.25 0 0 0-2.25 2.25v7.5" /></svg>`;
 
   box.innerHTML = `
@@ -124,7 +123,7 @@ function processRitDone(ritName, type) {
 }
 
 /* =========================================
-   HELPER BARU: HITUNG IKAT & DERETKAN SISA
+   HITUNG IKAT & DERETKAN SISA
    ========================================= */
 function formatDetailPorsi(listData, tipe) {
   let ikatTerkumpul = 0;
@@ -163,10 +162,10 @@ function update() {
     0,
     parseInt(document.getElementById("readyInput")?.value || 0),
   );
-  // --- LOGIKA BARU: ALOKASI STOK BERDASARKAN RIT ---
+  // --- ALOKASI STOK BERDASARKAN RIT ---
   let stokCek = readyVal;
 
-  // Kita urutkan data khusus untuk pembagian stok (Pending didahulukan, lalu urut Rit 1, 2, dst)
+  // Urutkan data khusus untuk pembagian stok (Pending didahulukan, lalu urut Rit 1, 2, dst)
   let urutanPembagian = [...data].sort((a, b) => {
     const statA = a.status === "pending" ? 1 : 2;
     const statB = b.status === "pending" ? 1 : 2;
@@ -210,7 +209,7 @@ function update() {
 
   let targetTotal = aktif.reduce((sum, d) => sum + d.total, 0);
 
-  // FIX: Terdistribusi/Kirim Total kini berhitung parsial (PK/PB Saja ditambahkan)
+  // Terdistribusi/Kirim Total kini berhitung parsial (PK/PB Saja ditambahkan)
   let kirimTotal = aktif.reduce((sum, d) => {
     let t = 0;
     let pkVal = hitung(d.pk_val.i, d.pk_val.s);
@@ -283,7 +282,7 @@ function update() {
     setTxt("pkDetailIkat", pkPending.teksDetail);
   }
 
-  // --- TAMPILAN VIEW PB (VERSI RAPI) ---
+  // --- TAMPILAN VIEW PB ---
   setTxt("totalPBView", pbTot);
   setTxt("pbDoneView", pbDone);
 
@@ -338,11 +337,11 @@ function update() {
       // 1. Kondisi Kosong / Belum Diisi
       if (elLabel) elLabel.innerText = "Belum Tersedia";
       elKurang.innerText = ""; // Sembunyikan angka
-      elKurang.style.color = "#64748b"; // Warna abu-abu opsional
+      elKurang.style.color = "#64748b";
     } else if (selisih < 0) {
       // 2. Kondisi Lebih (Tersedia > Belum Terdistribusi)
       if (elLabel) elLabel.innerText = "Lebih";
-      // Math.abs() mengubah angka negatif menjadi positif (misal: -100 jadi 100)
+      // Math.abs() mengubah angka negatif menjadi positif
       elKurang.innerText = Math.abs(selisih).toString();
       elKurang.style.color = "var(--success)";
     } else {
@@ -359,7 +358,7 @@ function update() {
 }
 
 /* =========================================
-   LOGIKA BARU: RENDER BREAKDOWN PER RIT
+   RENDER BREAKDOWN PER RIT
    ========================================= */
 function renderRitBreakdown(aktifList) {
   const container = document.getElementById("ritContainer");
@@ -491,12 +490,11 @@ function renderRitBreakdown(aktifList) {
             ? ` <span style="color:#166534; font-size:10px; font-weight:900;">✓PB</span>`
             : "";
 
-        // LOGIKA HIGHLIGHT SIAP (Warna Hijau Khusus)
+        // LOGIKA HIGHLIGHT SIAP
         let styleReady = sek._isSiap
-          ? "background: #dcfce7; color: #166534; border: 2px solid #22c55e;" // <-- Highlight hijau jika siap
-          : "background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;"; // <-- Biru biasa jika belum siap
+          ? "background: #dcfce7; color: #166534; border: 2px solid #22c55e;"
+          : "background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;";
 
-        // Ganti style bawaan dengan styleReady
         listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; ${styleReady} ${cursorStyle}">${sek.nama}${pkInd}${pbInd}</span>`;
       }
     });
@@ -766,7 +764,7 @@ function closeTambahModal() {
 function tambah() {
   let nama = document.getElementById("nama").value.trim().toUpperCase();
 
-  // Validasi Nama Kosong (Bisa ditambahkan peringatan snackbar juga)
+  // Validasi Nama Kosong
   if (!nama) {
     showSnackbar("Gagal: Nama sekolah harus diisi!", false);
     return;
@@ -805,7 +803,7 @@ function tambah() {
   }
 
   // ==========================================
-  // BLOK VALIDASI BARU: CEK JIKA TOTALNYA 0
+  // CEK JIKA TOTALNYA 0
   // ==========================================
   let totalMuatan = pkHitung + pbHitung;
   if (totalMuatan === 0) {
@@ -822,7 +820,7 @@ function tambah() {
     status: "pending",
     pk_done: false,
     pb_done: false,
-    total: totalMuatan, // Pakai variabel yang sudah dihitung tadi
+    total: totalMuatan,
     pk_val: { i: pkUtama, s: pkTotalEceran },
     pb_val: { i: pbUtama, s: pbTotalEceran },
   };
@@ -960,7 +958,7 @@ function simpanPerubahanModal() {
   }
 
   // ==========================================
-  // BLOK VALIDASI BARU: CEK JIKA TOTALNYA 0
+  // CEK JIKA TOTALNYA 0
   // ==========================================
   let totalMuatan = pkHitung + pbHitung;
   if (totalMuatan === 0) {
@@ -1022,7 +1020,6 @@ function setStatus(i, s) {
   };
   update();
   let txt = s === "done" ? "SELESAI" : s === "holiday" ? "LIBUR" : "PENDING";
-  // Menghapus emoji centang
   showSnackbar(`${txt}`, true);
 }
 
@@ -1126,7 +1123,6 @@ function closeModal() {
 }
 
 function confirmHapus(i) {
-  // Ganti emoji tempat sampah dengan SVG
   const svgHapus = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #ef4444;"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>`;
   openModal(svgHapus, "Hapus", "Hapus sekolah ini?", "#ef4444", () => {
     deletedItem = { type: "active", index: i, content: data[i] };
@@ -1138,7 +1134,6 @@ function confirmHapus(i) {
 }
 
 function confirmHapusHist(i) {
-  // Ganti emoji api dengan SVG delete history / fire
   const svgHapusPermanen = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #ef4444;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z" /></svg>`;
   openModal(svgHapusPermanen, "Hapus", "Hapus permanen?", "#ef4444", () => {
     deletedItem = { type: "history", index: i, content: historyData[i] };
@@ -1149,7 +1144,6 @@ function confirmHapusHist(i) {
 }
 
 function confirmClearHistory() {
-  // Ganti emoji sirine dengan SVG alert triangle
   const svgAlert = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #ef4444;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`;
   openModal(
     svgAlert,
@@ -1228,7 +1222,6 @@ function shareRitSummary(ritName) {
   sekolahDiRitIni.forEach((s) => {
     let pk = hitung(s.pk_val.i, s.pk_val.s),
       pb = hitung(s.pb_val.i, s.pb_val.s);
-    // Mengganti emoji dengan teks karena dikirim via WA (plain text tidak membaca SVG)
     let statusTag = s.status === "done" ? "(Selesai)" : "";
     if (s.status !== "done") {
       if (s.pk_done && pk > 0 && (!s.pb_done || pb === 0))
@@ -1316,10 +1309,8 @@ function showSchoolInfo(idx) {
     </div>`;
   }
 
-  // Render SVG untuk Mobil (Kini menggunakan ikon Truk)
   const svgMapPin = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px; display: inline-block; vertical-align: text-bottom; margin-right: 2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25v5.25m0-5.25a4.5 4.5 0 0 1 4.5 4.5m-4.5-4.5h-9a2.25 2.25 0 0 0-2.25 2.25v7.5" /></svg>`;
 
-  // Render SVG untuk Rit (Kini menggunakan ikon Rak/Box yang baru)
   const svgTrukMini = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 14px; height: 14px; display: inline-block; vertical-align: text-bottom; margin-right: 2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 1.5v-1.5m0 0c0-.621.504-1.125 1.125-1.125m0 0h7.5" /></svg>`;
 
   document.getElementById("infoModalTitle").innerText = s.nama;
@@ -1409,7 +1400,6 @@ function confirmResetAllDone() {
     return;
   }
 
-  // 2. Gunakan modal konfirmasi bawaan Anda untuk keamanan
   const svgRefresh = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #f59e0b;"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99જી" /></svg>`;
 
   openModal(
@@ -1419,7 +1409,7 @@ function confirmResetAllDone() {
     "#f59e0b",
     () => {
       // 3. Simpan state lama untuk fitur UNDO (jaga-jaga jika salah klik)
-      // Kita simpan salinan data sebelum diubah
+      // Simpan salinan data sebelum diubah
       let backupData = JSON.parse(JSON.stringify(data));
 
       targetIndices.forEach((i) => {
