@@ -369,9 +369,29 @@ function renderRitBreakdown(aktifList) {
     document.getElementById("dashSearchInput")?.value.toLowerCase().trim() ||
     "";
 
-  let listRitTersedia = [
-    ...new Set(aktifList.map((d) => d.rit || "Rit 1")),
-  ].sort();
+  // 1. Ambil daftar nama Rit yang unik
+  let uniqueRits = [...new Set(aktifList.map((d) => d.rit || "Rit 1"))];
+
+  // 2. Urutkan berdasarkan status "Selesai" lalu berdasarkan Abjad
+  let listRitTersedia = uniqueRits.sort((a, b) => {
+    // Cek apakah semua sekolah di Rit A sudah selesai
+    let ritA_sekolah = aktifList.filter((d) => (d.rit || "Rit 1") === a);
+    let ritA_selesai =
+      ritA_sekolah.length > 0 && ritA_sekolah.every((d) => d.status === "done");
+
+    // Cek apakah semua sekolah di Rit B sudah selesai
+    let ritB_sekolah = aktifList.filter((d) => (d.rit || "Rit 1") === b);
+    let ritB_selesai =
+      ritB_sekolah.length > 0 && ritB_sekolah.every((d) => d.status === "done");
+
+    // Jika status selesainya berbeda, pindahkan yang sudah selesai ke bawah (return 1)
+    if (ritA_selesai !== ritB_selesai) {
+      return ritA_selesai ? 1 : -1;
+    }
+
+    // Jika statusnya sama (sama-sama belum atau sama-sama selesai), urutkan sesuai abjad
+    return a.localeCompare(b);
+  });
 
   // TAMPILAN JIKA DATA KOSONG DI DASBOR
   if (listRitTersedia.length === 0) {
