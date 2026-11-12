@@ -3,6 +3,8 @@
    ========================================= */
 let data = JSON.parse(localStorage.getItem("ultra_v10_data") || "[]");
 let historyData = JSON.parse(localStorage.getItem("ultra_v10_hist") || "[]");
+let archiveData = JSON.parse(localStorage.getItem("ultra_v10_arsip") || "[]");
+if (!Array.isArray(archiveData)) archiveData = [];
 
 let deletedItem = null;
 let deleteTimeout = null;
@@ -13,6 +15,20 @@ const setTxt = (id, val) => {
 };
 const hitung = (i, s) =>
   Math.max(0, parseInt(i) || 0) * 5 + Math.max(0, parseInt(s) || 0);
+const angka = (v) => Math.max(0, parseInt(v) || 0);
+
+function formatDateTime(iso) {
+  if (!iso) return "";
+  let d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 /* =========================================
    FUNGSI SINKRONISASI STATUS (BARU)
@@ -33,8 +49,10 @@ function syncStatus(d) {
     // Jika keduanya sudah true, ubah status utama jadi done
     if (d.pk_done && d.pb_done) {
       d.status = "done";
+      if (!d.done_at) d.done_at = new Date().toISOString();
     } else {
       d.status = "pending";
+      d.done_at = null;
     }
   }
 }
@@ -67,24 +85,23 @@ function showPage(pId, el) {
 function confirmRitDone(ritName) {
   const overlay = document.createElement("div");
   overlay.id = "ritConfirmOverlay";
-  overlay.style.cssText =
-    "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:9999;";
+  overlay.className = "modal-overlay";
+  overlay.style.display = "flex";
 
   const box = document.createElement("div");
-  box.style.cssText =
-    "background:white; padding:24px; border-radius:16px; width:85%; max-width:320px; text-align:center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);";
+  box.className = "modal-box";
 
-  const svgTruk = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 48px; height: 48px; color: #475569; margin: 0 auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25v5.25m0-5.25a4.5 4.5 0 0 1 4.5 4.5m-4.5-4.5h-9a2.25 2.25 0 0 0-2.25 2.25v7.5" /></svg>`;
+  const svgTruk = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="color: var(--muted);"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25v5.25m0-5.25a4.5 4.5 0 0 1 4.5 4.5m-4.5-4.5h-9a2.25 2.25 0 0 0-2.25 2.25v7.5" /></svg>`;
 
   box.innerHTML = `
-      <div style="margin-bottom:10px; display: flex; justify-content: center;">${svgTruk}</div>
-      <h3 style="margin:0 0 5px 0; font-size:18px; color:var(--dark);">Selesaikan ${ritName.toUpperCase()}</h3>
-      <p style="font-size:13px; color:#64748b; margin-bottom:20px;">Tandai bagian mana yang sudah selesai dikirim?</p>
-      <div style="display:flex; flex-direction:column; gap:10px;">
-          <button onclick="processRitDone('${ritName}', 'PK')" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer;">PK SELESAI</button>
-          <button onclick="processRitDone('${ritName}', 'PB')" style="background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer;">PB SELESAI</button>
-          <button onclick="processRitDone('${ritName}', 'ALL')" style="background:#22c55e; color:white; border:none; padding:12px; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 4px 6px rgba(34,197,94,0.2);">SELESAI SEMUA</button>
-          <button onclick="document.getElementById('ritConfirmOverlay').remove()" style="background:transparent; color:#64748b; border:none; padding:10px; margin-top:5px; cursor:pointer; font-weight:700; font-size:14px;">Batal</button>
+      <div class="modal-icon">${svgTruk}</div>
+      <h3>Selesaikan ${ritName.toUpperCase()}</h3>
+      <p>Tandai bagian mana yang sudah selesai dikirim?</p>
+      <div class="modal-choices">
+          <button class="btn-choice pb" onclick="processRitDone('${ritName}', 'PB')">PORSI BESAR SELESAI</button>
+          <button class="btn-choice pk" onclick="processRitDone('${ritName}', 'PK')">PORSI KECIL SELESAI</button>
+          <button class="btn-choice all" onclick="processRitDone('${ritName}', 'ALL')">SELESAI SEMUA</button>
+          <button class="btn-link" onclick="document.getElementById('ritConfirmOverlay').remove()">Batal</button>
       </div>
   `;
   overlay.appendChild(box);
@@ -117,7 +134,8 @@ function processRitDone(ritName, type) {
       content: "pending",
     };
     update();
-    let msgType = type === "ALL" ? "SEMUA" : type;
+    let msgType =
+      type === "PB" ? "PORSI BESAR" : type === "PK" ? "PORSI KECIL" : "SEMUA";
     showSnackbar(`${ritName.toUpperCase()} - ${msgType} SELESAI`, true);
   }
 }
@@ -149,6 +167,32 @@ function formatDetailPorsi(listData, tipe) {
   return { totalPorsiIkat, teksDetail, isHabis: totalSemuaPorsi === 0 };
 }
 
+function hitungTerdistribusi(listData) {
+  return listData.reduce((sum, d) => {
+    let pkVal = hitung(d.pk_val.i, d.pk_val.s);
+    let pbVal = hitung(d.pb_val.i, d.pb_val.s);
+    if (d.status === "done" || d.pk_done) sum += pkVal;
+    if (d.status === "done" || d.pb_done) sum += pbVal;
+    return sum;
+  }, 0);
+}
+
+function sisaMuatan(d) {
+  let pk = hitung(d.pk_val.i, d.pk_val.s);
+  let pb = hitung(d.pb_val.i, d.pb_val.s);
+  let sisa = 0;
+  if (!d.pk_done) sisa += pk;
+  if (!d.pb_done) sisa += pb;
+  return sisa;
+}
+
+function stokPerMobil() {
+  return {
+    "Mobil 1": angka(document.getElementById("readyInputM1")?.value),
+    "Mobil 2": angka(document.getElementById("readyInputM2")?.value),
+  };
+}
+
 /* =========================================
    CORE LOGIC (UPDATE DASHBOARD & RIT GROUPING)
    ========================================= */
@@ -158,12 +202,10 @@ function update() {
     if (d.status !== "holiday") syncStatus(d);
   });
 
-  const readyVal = Math.max(
-    0,
-    parseInt(document.getElementById("readyInput")?.value || 0),
-  );
+  const stok = stokPerMobil();
+  const readyVal = stok["Mobil 1"] + stok["Mobil 2"];
   // --- ALOKASI STOK BERDASARKAN RIT ---
-  let stokCek = readyVal;
+  let stokCek = { ...stok };
 
   // Urutkan data khusus untuk pembagian stok (Pending didahulukan, lalu urut Rit 1, 2, dst)
   let urutanPembagian = [...data].sort((a, b) => {
@@ -178,9 +220,11 @@ function update() {
   urutanPembagian.forEach((d) => {
     d._isSiap = false;
     if (d.status === "pending") {
-      if (stokCek >= d.total && stokCek > 0) {
+      let butuh = sisaMuatan(d);
+      let sisaStok = stokCek[d.mobil] ?? 0;
+      if (butuh > 0 && sisaStok >= butuh) {
         d._isSiap = true;
-        stokCek -= d.total;
+        stokCek[d.mobil] = sisaStok - butuh;
       }
     }
   });
@@ -205,19 +249,19 @@ function update() {
   let aktif = data.filter((d) => d.status !== "holiday");
   let done = data.filter((d) => d.status === "done");
 
-  setTxt("sekolahDoneCount", `${done.length} sekolah selesai`);
+  const donePill = document.getElementById("sekolahDoneCount");
+  if (donePill) {
+    donePill.innerText = done.length ? `${done.length} sekolah selesai` : "";
+    donePill.parentElement.hidden = done.length === 0;
+  }
+
+  const btnRecap = document.getElementById("btnRecap");
+  if (btnRecap) btnRecap.hidden = aktif.length === 0;
 
   let targetTotal = aktif.reduce((sum, d) => sum + d.total, 0);
 
   // Terdistribusi/Kirim Total kini berhitung parsial (PK/PB Saja ditambahkan)
-  let kirimTotal = aktif.reduce((sum, d) => {
-    let t = 0;
-    let pkVal = hitung(d.pk_val.i, d.pk_val.s);
-    let pbVal = hitung(d.pb_val.i, d.pb_val.s);
-    if (d.status === "done" || d.pk_done) t += pkVal;
-    if (d.status === "done" || d.pb_done) t += pbVal;
-    return sum + t;
-  }, 0);
+  let kirimTotal = hitungTerdistribusi(aktif);
 
   let pkTot = aktif.reduce((sum, d) => sum + hitung(d.pk_val.i, d.pk_val.s), 0);
   let pbTot = aktif.reduce((sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s), 0);
@@ -276,7 +320,7 @@ function update() {
 
   if (pkPending.isHabis && pkTot > 0) {
     setTxt("pkSisaView", "SELESAI");
-    setTxt("pkDetailIkat", "Semua PK terkirim");
+    setTxt("pkDetailIkat", "Semua Porsi Kecil terkirim");
   } else {
     setTxt("pkSisaView", pkPending.totalPorsiIkat);
     setTxt("pkDetailIkat", pkPending.teksDetail);
@@ -288,7 +332,7 @@ function update() {
 
   if (pbPending.isHabis && pbTot > 0) {
     setTxt("pbSisaView", "SELESAI");
-    setTxt("pbDetailIkat", "Semua PB terkirim");
+    setTxt("pbDetailIkat", "Semua Porsi Besar terkirim");
   } else {
     setTxt("pbSisaView", pbPending.totalPorsiIkat);
     setTxt("pbDetailIkat", pbPending.teksDetail);
@@ -304,23 +348,27 @@ function update() {
   if (document.getElementById("progressBarReady")) {
     document.getElementById("progressBarReady").style.left = pKirim + "%";
     document.getElementById("progressBarReady").style.width =
-      Math.min(pSiap, 100 - pKirim) + "%";
+      Math.max(0, Math.min(pSiap, 100 - pKirim)) + "%";
   }
 
-  // --- LOGIKA DINAMIS UNTUK TEKS PROGRESS BAR ---
-  const elProgressPercent = document.getElementById("progressPercent");
-  if (elProgressPercent) {
-    if (targetTotal > 0 && Math.round(pKirim) >= 100) {
-      // Jika sudah 100% atau lebih
-      elProgressPercent.innerText = "Selesai";
-      elProgressPercent.style.fontSize = "11px"; // Menyesuaikan ukuran jika teksnya lebih panjang
-      elProgressPercent.style.fontWeight = "900";
-    } else {
-      // Jika masih berjalan (menampilkan angka persentase)
-      elProgressPercent.innerText = Math.round(pKirim) + "%";
-      elProgressPercent.style.fontSize = ""; // Reset ukuran font
-    }
-  }
+  // --- LEGEND PROGRESS: HANYA TAMPIL JIKA ADA DATA ---
+  const elDistributedPercent = document.getElementById("distributedPercent");
+  const elAvailablePercent = document.getElementById("availablePercent");
+  const elLegendDistributed = document.getElementById("legendDistributed");
+  const elLegendAvailable = document.getElementById("legendAvailable");
+  const elProgressLegend = document.getElementById("progressLegend");
+
+  const hasDistributed = kirimTotal > 0;
+  const hasAvailable = targetTotal > 0 && readyVal > 0;
+
+  if (elDistributedPercent)
+    elDistributedPercent.innerText = Math.round(pKirim) + "%";
+  if (elAvailablePercent)
+    elAvailablePercent.innerText = Math.round(pSiap) + "%";
+  if (elLegendDistributed) elLegendDistributed.hidden = !hasDistributed;
+  if (elLegendAvailable) elLegendAvailable.hidden = !hasAvailable;
+  if (elProgressLegend)
+    elProgressLegend.hidden = !hasDistributed && !hasAvailable;
 
   // --- LOGIKA DINAMIS UNTUK STATUS TERSEDIA ---
   let sisaTargetReal = targetTotal - kirimTotal;
@@ -330,14 +378,16 @@ function update() {
   const elLabel = document.getElementById("labelSisaReady");
 
   // Menangkap nilai input asli (untuk mengecek apakah benar-benar kosong)
-  let rawReadyInput = document.getElementById("readyInput")?.value;
+  let rawM1 = document.getElementById("readyInputM1")?.value;
+  let rawM2 = document.getElementById("readyInputM2")?.value;
+  let adaInput = [rawM1, rawM2].some((v) => v && v.trim() !== "");
 
   if (elKurang) {
-    if (!rawReadyInput || rawReadyInput.trim() === "" || readyVal === 0) {
+    if (!adaInput || readyVal === 0) {
       // 1. Kondisi Kosong / Belum Diisi
       if (elLabel) elLabel.innerText = "Belum Tersedia";
       elKurang.innerText = ""; // Sembunyikan angka
-      elKurang.style.color = "#64748b";
+      elKurang.style.color = "var(--muted)";
     } else if (selisih < 0) {
       // 2. Kondisi Lebih (Tersedia > Belum Terdistribusi)
       if (elLabel) elLabel.innerText = "Lebih";
@@ -354,6 +404,8 @@ function update() {
 
   localStorage.setItem("ultra_v10_data", JSON.stringify(data));
   localStorage.setItem("ultra_v10_hist", JSON.stringify(historyData));
+  localStorage.setItem("ultra_v10_arsip", JSON.stringify(archiveData));
+  renderBackupNote();
   render();
 }
 
@@ -457,40 +509,35 @@ function renderRitBreakdown(aktifList) {
     let pkRitData = formatDetailPorsi(dataHitungPK, "PK");
     let pbRitData = formatDetailPorsi(dataHitungPB, "PB");
 
-    let btnActionHTML = `<button onclick="shareRitSummary('${ritName}')" style="background:#e2e8f0; border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:#475569;">SHARE</button>`;
+    let btnActionHTML = `<button class="btn-chip btn-chip-share" onclick="event.stopPropagation(); shareRitSummary('${ritName}')">SHARE</button>`;
 
     if (!isRitSelesai) {
-      let spinnerStyle =
-        "display:inline-block; width:10px; height:10px; border:2px solid rgba(255,255,255,0.4); border-top-color:white; border-radius:50%; animation: putar 1s linear infinite;";
-      btnActionHTML += `<button onclick="confirmRitDone('${ritName}')" style="background: var(--warning); border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:10px; font-weight:800; color:#713f12; display:flex; align-items:center; gap:4px;"><span style="${spinnerStyle}"></span> Proses</button>`;
+      btnActionHTML += `<button class="btn-chip btn-chip-process" onclick="event.stopPropagation(); confirmRitDone('${ritName}')"><span class="spinner"></span> Proses</button>`;
     } else {
-      btnActionHTML += `<span style="background:#d1fae5; color:var(--success); border:1px solid #10b981; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:0.5px;">SELESAI</span>`;
+      btnActionHTML += `<span class="badge badge-done">Selesai</span>`;
     }
 
-    let stylePK = isRitPkDone
-      ? "background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0; text-decoration:line-through;"
-      : "background:#fef2f2; color:var(--danger); border:1px solid #fee2e2;";
-    let stylePB = isRitPbDone
-      ? "background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0; text-decoration:line-through;"
-      : "background:#f0f9ff; color:#0284c7; border:1px solid #e0f2fe;";
-
-    let cardStyle = isRitSelesai
-      ? "background: #f8fafc; border: 1px solid #cbd5e1;"
-      : "background: white; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.03);";
+    let stylePK = isRitPkDone ? "is-done" : "";
+    let stylePB = isRitPbDone ? "is-done" : "";
+    let cardClass = isRitSelesai
+      ? "rit-summary-card is-done"
+      : "rit-summary-card";
+    let cardClick = isRitSelesai
+      ? ""
+      : `onclick="confirmRitDone('${ritName}')"`;
 
     // Progress Bar HTML
     let progressHTML = `
-      <div style="width: 100%; background: #e2e8f0; border-radius: 4px; height: 6px; margin: 8px 0; overflow: hidden;">
-          <div style="width: ${ritProgressPct}%; background: #10b981; height: 100%; transition: width 0.3s ease;"></div>
+      <div class="bar">
+          <span class="bar-fill" style="width: ${ritProgressPct}%;"></span>
       </div>
-      <div style="font-size: 10px; color: #64748b; text-align: right; margin-top: -4px; margin-bottom: 8px; font-weight: bold;">${ritProgressPct}% Selesai</div>
+      <div class="rit-progress-label">${ritProgressPct}% Selesai</div>
     `;
 
-    let listSekolahHTML = `<div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">`;
+    let listSekolahHTML = `<div class="school-chips">`;
 
     sekolahDiRitIni.forEach((sek) => {
       let originalIdx = data.indexOf(sek);
-      let cursorStyle = "cursor: pointer; transition: all 0.3s ease;";
       let isHighlighted =
         dashSearch && sek.nama.toLowerCase().includes(dashSearch);
       let highlightClass = isHighlighted ? "highlight-school" : "";
@@ -499,46 +546,44 @@ function renderRitBreakdown(aktifList) {
       let pbVal = hitung(sek.pb_val.i, sek.pb_val.s);
 
       if (sek.status === "done") {
-        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; background: #f1f5f9; color: #9FA6B0; padding: 4px 8px; border-radius: 6px; text-decoration: line-through; border: 1px solid #e2e8f0; ${cursorStyle}">${sek.nama}</span>`;
+        listSekolahHTML += `<span onclick="event.stopPropagation(); showSchoolInfo(${originalIdx})" class="school-chip is-done ${highlightClass}">${sek.nama}</span>`;
       } else {
         let pkInd =
           sek.pk_done && pkVal > 0
-            ? ` <span style="color:#166534; font-size:10px; font-weight:900;">✓PK</span>`
+            ? ` <span class="chip-check">✓ Porsi Kecil</span>`
             : "";
         let pbInd =
           sek.pb_done && pbVal > 0
-            ? ` <span style="color:#166534; font-size:10px; font-weight:900;">✓PB</span>`
+            ? ` <span class="chip-check">✓ Porsi Besar</span>`
             : "";
 
         // LOGIKA HIGHLIGHT SIAP
-        let styleReady = sek._isSiap
-          ? "background: #dcfce7; color: #166534; border: 2px solid #22c55e;"
-          : "background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;";
+        let readyClass = sek._isSiap ? "is-ready" : "";
 
-        listSekolahHTML += `<span onclick="showSchoolInfo(${originalIdx})" class="${highlightClass}" style="font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; ${styleReady} ${cursorStyle}">${sek.nama}${pkInd}${pbInd}</span>`;
+        listSekolahHTML += `<span onclick="event.stopPropagation(); showSchoolInfo(${originalIdx})" class="school-chip ${readyClass} ${highlightClass}">${sek.nama}${pbInd}${pkInd}</span>`;
       }
     });
 
     listSekolahHTML += `</div>`;
 
     container.innerHTML += `
-            <div class="rit-summary-card" style="${cardStyle}">
-                <div class="rit-summary-title" style="margin-bottom: 10px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 14px; font-weight: 900;">${ritName.toUpperCase()}</span>
+            <div class="${cardClass}" ${cardClick}>
+                <div class="rit-summary-title">
+                    <div class="rit-title-left">
+                        <span class="rit-name">${ritName.toUpperCase()}</span>
                         ${btnActionHTML}
                     </div>
-                    <span style="font-size: 13px; font-weight: 900; color: ${isRitSelesai ? "var(--success)" : "var(--dark)"};">
+                    <span class="rit-total${isRitSelesai ? " is-done" : ""}">
                         Total: ${totalRit}
                     </span>
                 </div>
                 ${progressHTML}
                 <div class="rit-summary-row">
-                    <div class="rit-summary-item" style="${stylePK}">
-                        PK ${pkRitData.totalPorsiIkat} <span class="rit-summary-eceran" style="opacity: 0.85;">(${pkRitData.teksDetail})</span>
+                    <div class="rit-summary-item pb ${stylePB}">
+                        Porsi Besar ${pbRitData.totalPorsiIkat} <span class="rit-summary-eceran">(${pbRitData.teksDetail})</span>
                     </div>
-                    <div class="rit-summary-item" style="${stylePB}">
-                        PB ${pbRitData.totalPorsiIkat} <span class="rit-summary-eceran" style="opacity: 0.85;">(${pbRitData.teksDetail})</span>
+                    <div class="rit-summary-item pk ${stylePK}">
+                        Porsi Kecil ${pkRitData.totalPorsiIkat} <span class="rit-summary-eceran">(${pkRitData.teksDetail})</span>
                     </div>
                 </div>
                 ${listSekolahHTML}
@@ -607,12 +652,6 @@ function render() {
   } else {
     filtered.forEach((d) => {
       let originalIdx = data.findIndex((item) => item === d);
-      let statusColor =
-        d.status === "done"
-          ? "var(--success)"
-          : d.status === "holiday"
-            ? "#64748b"
-            : "var(--warning)";
 
       let pkT = hitung(d.pk_val.i, d.pk_val.s);
       let pbT = hitung(d.pb_val.i, d.pb_val.s);
@@ -620,45 +659,38 @@ function render() {
       let ritLabel = d.rit || "Rit 1";
 
       let rekLabel = d._isSiap
-        ? `<span style="background:var(--success); color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:5px;">SIAP</span>`
+        ? `<span class="badge badge-ready">SIAP</span>`
         : "";
-
-      let itemBg = "#f8fafc";
-      let itemBorder = d._isSiap ? "var(--success)" : "#e2e8f0";
-      let boxStyle = `background-color: ${itemBg}; border: 2px solid ${itemBorder};`;
-
-      let totalBgColor =
-        d.status === "done"
-          ? "var(--success)"
-          : d.status === "holiday"
-            ? "#64748b"
-            : "#fef08a";
-      let totalTextColor = d.status === "pending" ? "#713f12" : "#ffffff";
 
       let actionHTML = `
           <div class="action-dropdown-container">
               <button class="btn-action-trigger" onclick="toggleItemMenu(this)">⋮</button>
               <div class="item-dropdown-menu">
-                  <div class="item-dropdown-btn" style="color: #64748b;" onclick="editSekolah(${originalIdx})">Edit</div>
+                  <div class="item-dropdown-btn" onclick="editSekolah(${originalIdx})">Edit</div>
                   ${
                     d.status === "pending"
-                      ? `<div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'done')">Selesai</div>
-                         <div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'holiday')">Libur</div>`
-                      : `<div class="item-dropdown-btn" style="color: #64748b;" onclick="setStatus(${originalIdx}, 'pending')">Proses</div>`
+                      ? `<div class="item-dropdown-btn" onclick="setStatus(${originalIdx}, 'done')">Selesai</div>
+                         <div class="item-dropdown-btn" onclick="setStatus(${originalIdx}, 'holiday')">Libur</div>`
+                      : `<div class="item-dropdown-btn" onclick="setStatus(${originalIdx}, 'pending')">Proses</div>`
                   }
-                  <div class="item-dropdown-btn delete" style="color: var(--danger);" onclick="confirmHapus(${originalIdx})">Hapus</div>
+                  <div class="item-dropdown-btn delete" onclick="confirmHapus(${originalIdx})">Hapus</div>
               </div>
           </div>
         `;
 
       let labelStatus = "PROSES";
-      if (d.status === "done") labelStatus = "SELESAI";
-      else if (d.status === "holiday") labelStatus = "LIBUR";
+      let badgeClass = "badge-pending";
+      if (d.status === "done") {
+        labelStatus = "SELESAI";
+        badgeClass = "badge-done";
+      } else if (d.status === "holiday") {
+        labelStatus = "LIBUR";
+        badgeClass = "badge-holiday";
+      }
 
-      let badgeHTML =
-        d.status === "pending"
-          ? `<span class="badge" style="background:${statusColor}; color: white; display: inline-flex; align-items: center; gap: 4px;"><span style="display:inline-block; width:8px; height:8px; border:2px solid rgba(255,255,255,0.4); border-top-color:white; border-radius:50%; animation: putar 1s linear infinite;"></span>${labelStatus}</span>`
-          : `<span class="badge" style="background:${statusColor}; color: white;">${labelStatus}</span>`;
+      let pendingSpinner =
+        d.status === "pending" ? `<span class="spinner"></span>` : "";
+      let badgeHTML = `<span class="badge ${badgeClass}">${pendingSpinner}${labelStatus}</span>`;
 
       let isPkDone = d.status === "done" || d.pk_done;
       let isPbDone = d.status === "done" || d.pb_done;
@@ -671,46 +703,44 @@ function render() {
         d.total > 0 ? Math.round((doneItems / d.total) * 100) : 0;
 
       let schoolProgressBarHTML = `
-          <div style="width: 100%; background: #e2e8f0; border-radius: 4px; height: 5px; margin: 6px 0 4px 0; overflow: hidden; display: flex;">
-              <div style="width: ${schoolProgressPct}%; background: #10b981; height: 100%; transition: width 0.3s ease;"></div>
+          <div class="bar">
+              <span class="bar-fill" style="width: ${schoolProgressPct}%;"></span>
           </div>
-          <div style="font-size: 9px; color: #64748b; text-align: right; margin-bottom: 8px; font-weight: bold;">
+          <div class="bar-label">
               ${schoolProgressPct}% Selesai
           </div>
         `;
 
-      let pkBoxStyle = isPkDone
-        ? "background:#f0fdf4; color:#166534;"
-        : "background:#fef2f2; color:#b91c1c;";
-      let pkTextStrike =
-        isPkDone && pkT > 0 ? "text-decoration:line-through;" : "";
-      let pbBoxStyle = isPbDone
-        ? "background:#f0fdf4; color:#166534;"
-        : "background:#f0f9ff; color:#0369a1;";
-      let pbTextStrike =
-        isPbDone && pbT > 0 ? "text-decoration:line-through;" : "";
+      let doneAtHTML =
+        d.status === "done" && d.done_at
+          ? `<div class="item-done-at">Selesai ${formatDateTime(d.done_at)}</div>`
+          : "";
+
+      let pkClass = isPkDone && pkT > 0 ? "kv-row pk is-done" : "kv-row pk";
+      let pbClass = isPbDone && pbT > 0 ? "kv-row pb is-done" : "kv-row pb";
 
       listActive.innerHTML += `
-                <div class="item ${d.status}" style="${boxStyle}">
+                <div class="item ${d.status}${d._isSiap ? " is-ready" : ""}">
                     <div class="action">${actionHTML}</div>
-                    <div style="margin-bottom:5px; padding-right: 25px;">
+                    <div class="item-meta">
                         ${badgeHTML}
                         <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
                         <span class="rit-tag">${ritLabel.toUpperCase()}</span>
                         ${rekLabel}
                     </div>
-                    <span class="item-title" style="display:block; font-weight:800; padding-right: 20px;">${d.nama}</span>
+                    <span class="item-title">${d.nama}</span>
                     ${schoolProgressBarHTML}
-                    <div style="display:flex; flex-direction:column; gap:4px">
-                        <div style="${pkBoxStyle} padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px;">
-                            <b style="${pkTextStrike}">PK</b> <span style="${pkTextStrike}">${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
+                    <div class="kv-list">
+                        <div class="${pbClass}">
+                            <b>Porsi Besar</b> <span>${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
                         </div>
-                        <div style="${pbBoxStyle} padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px;">
-                            <b style="${pbTextStrike}">PB</b> <span style="${pbTextStrike}">${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
+                        <div class="${pkClass}">
+                            <b>Porsi Kecil</b> <span>${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
                         </div>
-                        <div style="background:${totalBgColor}; color:${totalTextColor}; text-align:center; padding:5px; border-radius:8px; font-weight:900; font-size:11px;">
+                        <div class="total-row">
                             TOTAL: ${d.total}
                         </div>
+                        ${doneAtHTML}
                     </div>
                 </div>`;
     });
@@ -739,35 +769,356 @@ function render() {
           <div class="action-dropdown-container">
               <button class="btn-action-trigger" onclick="toggleItemMenu(this)">⋮</button>
               <div class="item-dropdown-menu">
-                  <div class="item-dropdown-btn" style="color: var(--success);" onclick="restore(${i})">Restore Data</div>
+                  <div class="item-dropdown-btn restore" onclick="restore(${i})">Restore Data</div>
                   <div class="item-dropdown-btn delete" onclick="confirmHapusHist(${i})">Hapus Permanen</div>
               </div>
           </div>
         `;
 
       listHist.innerHTML += `
-                <div class="item holiday" style="opacity: 0.85;">
+                <div class="item holiday history-item">
                     <div class="action">${actionHTML}</div>
-                    <div style="margin-bottom:5px">
-                        <span class="badge" style="background:#fee2e2; color:var(--danger); border:1px solid #fecaca;">TERHAPUS</span>
+                    <div class="item-meta">
+                        <span class="badge badge-deleted">TERHAPUS</span>
                         <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
                         <span class="rit-tag">${ritLabel.toUpperCase()}</span>
                     </div>
-                    <span class="item-title" style="display:block; font-weight:800; margin-bottom:8px; color:#475569;">${d.nama}</span>
-                    <div style="display:flex; flex-direction:column; gap:4px">
-                        <div style="background:#fef2f2; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px; color:#b91c1c;">
-                            <b>PK</b> <span>${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
+                    <span class="item-title">${d.nama}</span>
+                    <div class="kv-list">
+                        <div class="kv-row pb">
+                            <b>Porsi Besar</b> <span>${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
                         </div>
-                        <div style="background:#f0f9ff; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; font-size:11px; color:#0369a1;">
-                            <b>PB</b> <span>${pbT} (${Math.floor(pbT / 5)} iket + ${pbT % 5})</span>
+                        <div class="kv-row pk">
+                            <b>Porsi Kecil</b> <span>${pkT} (${Math.floor(pkT / 5)} iket + ${pkT % 5})</span>
                         </div>
-                        <div style="background:#e2e8f0; color:#475569; text-align:center; padding:5px; border-radius:8px; font-weight:900; font-size:11px;">
+                        <div class="total-row">
                             TOTAL: ${totalVal}
                         </div>
                     </div>
                 </div>`;
     });
   }
+
+  renderArsip();
+}
+
+/* =========================================
+   ARSIP HARIAN
+   ========================================= */
+function formatTanggal(tanggal) {
+  const [y, m, d] = (tanggal || "").split("-").map(Number);
+  if (!y || !m || !d) return tanggal || "";
+  return new Date(y, m - 1, d).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function tanggalLokal(iso) {
+  let d = iso ? new Date(iso) : new Date();
+  if (isNaN(d.getTime())) d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function arsipkanSekolah(school) {
+  const tanggal = tanggalLokal(school.done_at);
+  let entry = archiveData.find((a) => a.tanggal === tanggal);
+  if (!entry) {
+    entry = { tanggal, dibuat: new Date().toISOString(), items: [] };
+    archiveData.unshift(entry);
+  }
+  entry.dibuat = new Date().toISOString();
+  entry.items.push(JSON.parse(JSON.stringify(school)));
+}
+
+function arsipJikaBatalSelesai(prev, status) {
+  if (prev.status === "done" && status !== "done") {
+    const before = JSON.parse(JSON.stringify(archiveData));
+    arsipkanSekolah(prev);
+    return before;
+  }
+  return null;
+}
+
+function arsipkanSelesai() {
+  data.filter((d) => d.status === "done").forEach(arsipkanSekolah);
+}
+
+function confirmClearArchive() {
+  openModal(
+    SVG_ALERT,
+    "Hapus Arsip",
+    "Kosongkan semua arsip harian?",
+    "var(--danger)",
+    () => {
+      deletedItem = { type: "archive_clear", content: archiveData };
+      archiveData = [];
+      update();
+      showSnackbar("Arsip dibersihkan", true);
+    },
+  );
+}
+
+function renderArsip() {
+  const list = document.getElementById("listArsip");
+  const section = document.getElementById("arsipSection");
+  if (!list || !section) return;
+
+  section.hidden = archiveData.length === 0;
+  list.innerHTML = [...archiveData]
+    .sort((a, b) => (b.tanggal || "").localeCompare(a.tanggal || ""))
+    .map((a) => {
+      const items = Array.isArray(a.items) ? a.items : [];
+      let total = 0;
+      const rows = items
+        .map((d) => {
+          const pk = hitung(d.pk_val.i, d.pk_val.s);
+          const pb = hitung(d.pb_val.i, d.pb_val.s);
+          total += Number(d.total) || pk + pb;
+          return `<div class="arsip-row"><span class="arsip-nama">${d.nama}</span><span class="arsip-porsi">PB ${pb} · PK ${pk}</span></div>`;
+        })
+        .join("");
+
+      return `<details class="arsip-card">
+        <summary>
+          <span class="arsip-main">
+            <span class="arsip-tanggal">${formatTanggal(a.tanggal)}</span>
+            <span class="arsip-jumlah">${items.length} sekolah · ${total} porsi</span>
+          </span>
+          <span class="arsip-caret">▾</span>
+        </summary>
+        <div class="arsip-list">${rows || '<div class="arsip-empty">Tidak ada data</div>'}</div>
+      </details>`;
+    })
+    .join("");
+}
+
+/* =========================================
+   BACKUP & RESTORE
+   ========================================= */
+function buildBackup() {
+  return {
+    app: "MBG",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data,
+    historyData,
+    archiveData,
+  };
+}
+
+function renderBackupNote() {
+  const el = document.getElementById("backupNote");
+  if (!el) return;
+
+  const adaData = data.length > 0 || historyData.length > 0;
+  let iso = null;
+  try {
+    iso = JSON.parse(localStorage.getItem("ultra_v10_backup") || "null");
+  } catch {
+    iso = null;
+  }
+
+  const t = iso ? new Date(iso) : null;
+  const valid = t && !isNaN(t.getTime());
+  const hari = valid ? Math.floor((Date.now() - t.getTime()) / 86400000) : 0;
+
+  if (!adaData || (valid && hari < 7)) {
+    el.hidden = true;
+    return;
+  }
+
+  el.hidden = false;
+  el.innerText = valid
+    ? `Backup terakhir ${formatDateTime(iso)} — sudah ${hari} hari. Ekspor lagi.`
+    : "Belum pernah backup. Data hanya tersimpan di perangkat ini.";
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(buildBackup(), null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `mbg-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  localStorage.setItem(
+    "ultra_v10_backup",
+    JSON.stringify(new Date().toISOString()),
+  );
+  renderBackupNote();
+  showSnackbar("Backup berhasil diekspor", false);
+}
+
+function parseBackup(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("file bukan JSON yang valid");
+  }
+
+  if (!parsed || !Array.isArray(parsed.data))
+    throw new Error("struktur backup tidak dikenali");
+
+  const isValidVal = (val) =>
+    val &&
+    Number.isFinite(Number(val.i)) &&
+    Number.isFinite(Number(val.s)) &&
+    Number(val.i) >= 0 &&
+    Number(val.s) >= 0;
+
+  const isSafeLabel = (v) =>
+    typeof v === "string" && /^[A-Za-z0-9 ]{1,20}$/.test(v);
+
+  const isValidSchool = (s) =>
+    s &&
+    typeof s.nama === "string" &&
+    s.nama.trim() !== "" &&
+    !/[<>]/.test(s.nama) &&
+    isSafeLabel(s.mobil) &&
+    isSafeLabel(s.rit) &&
+    isValidVal(s.pk_val) &&
+    isValidVal(s.pb_val);
+
+  parsed.data.forEach((s, i) => {
+    if (!isValidSchool(s))
+      throw new Error(`data sekolah #${i + 1} tidak valid`);
+  });
+
+  const history = Array.isArray(parsed.historyData) ? parsed.historyData : [];
+  history.forEach((s, i) => {
+    if (!isValidSchool(s))
+      throw new Error(`data riwayat #${i + 1} tidak valid`);
+  });
+
+  const archive = Array.isArray(parsed.archiveData) ? parsed.archiveData : [];
+  archive.forEach((a, i) => {
+    if (
+      !a ||
+      typeof a.tanggal !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(a.tanggal) ||
+      !Array.isArray(a.items)
+    )
+      throw new Error(`arsip #${i + 1} tidak valid`);
+    a.items.forEach((s, j) => {
+      if (!isValidSchool(s))
+        throw new Error(`data arsip #${i + 1}.${j + 1} tidak valid`);
+    });
+  });
+
+  const normalize = (s) => {
+    const status = ["pending", "done", "holiday"].includes(s.status)
+      ? s.status
+      : "pending";
+    const doneAt =
+      status === "done" &&
+      typeof s.done_at === "string" &&
+      !isNaN(Date.parse(s.done_at))
+        ? new Date(s.done_at).toISOString()
+        : null;
+
+    return {
+      nama: s.nama.trim(),
+      mobil: s.mobil,
+      rit: s.rit,
+      status,
+      pk_done: !!s.pk_done,
+      pb_done: !!s.pb_done,
+      done_at: doneAt,
+      total: hitung(s.pk_val.i, s.pk_val.s) + hitung(s.pb_val.i, s.pb_val.s),
+      pk_val: { i: Number(s.pk_val.i), s: Number(s.pk_val.s) },
+      pb_val: { i: Number(s.pb_val.i), s: Number(s.pb_val.s) },
+    };
+  };
+
+  return {
+    data: parsed.data.map(normalize),
+    historyData: history.map(normalize),
+    archiveData: archive.map((a) => ({
+      tanggal: a.tanggal,
+      dibuat:
+        typeof a.dibuat === "string" && !isNaN(Date.parse(a.dibuat))
+          ? new Date(a.dibuat).toISOString()
+          : null,
+      items: a.items.map(normalize),
+    })),
+  };
+}
+
+async function importData(input) {
+  const file = input.files && input.files[0];
+  input.value = "";
+  if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    showSnackbar("Gagal: file backup terlalu besar", false);
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = parseBackup(await file.text());
+  } catch (e) {
+    showSnackbar(`Gagal: ${e.message}`, false);
+    return;
+  }
+
+  const svgImpor = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: var(--warning-text);"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M7.5 12 12 16.5m0 0 4.5-4.5M12 16.5V3" /></svg>`;
+
+  openModal(
+    svgImpor,
+    "Impor Data",
+    `Impor akan mengganti ${data.length} sekolah, ${historyData.length} riwayat, dan ${archiveData.length} arsip saat ini dengan ${parsed.data.length} sekolah, ${parsed.historyData.length} riwayat, dan ${parsed.archiveData.length} arsip dari file. Lanjutkan?`,
+    "var(--warning-text)",
+    () => {
+      deletedItem = {
+        type: "import",
+        content: {
+          data: JSON.parse(JSON.stringify(data)),
+          historyData: JSON.parse(JSON.stringify(historyData)),
+          archiveData: JSON.parse(JSON.stringify(archiveData)),
+        },
+      };
+      data = parsed.data;
+      historyData = parsed.historyData;
+      archiveData = parsed.archiveData;
+      update();
+      showSnackbar("Data berhasil diimpor", true);
+    },
+  );
+}
+
+/* =========================================
+   DUPLICATE CHECK
+   ========================================= */
+function findDuplicateIndex(nama, excludeIdx = -1) {
+  const key = nama.trim().replace(/\s+/g, " ");
+  return data.findIndex(
+    (d, i) =>
+      i !== excludeIdx && d.nama.trim().replace(/\s+/g, " ") === key,
+  );
+}
+
+function promptDuplicate(nama, dupIdx, closeCurrent) {
+  const existing = data[dupIdx];
+  const svgWarning = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: var(--warning-text);"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>`;
+
+  openModal(
+    svgWarning,
+    "Sekolah Sudah Ada",
+    `${nama} sudah ada di daftar (${existing.mobil}, ${existing.rit || "Rit 1"}). Buka data yang ada?`,
+    "var(--warning-text)",
+    () => {
+      closeCurrent();
+      editSekolah(dupIdx);
+    },
+  );
 }
 
 /* =========================================
@@ -803,11 +1154,11 @@ function tambah() {
     : 0;
   let mode = document.querySelector('input[name="inputMode"]:checked').value;
 
-  let pkUtama = parseInt(pki) || 0,
-    pbUtama = parseInt(pbi) || 0,
-    tendikUtama = parseInt(tendiki) || 0;
-  let pkTotalEceran = parseInt(pks) || 0,
-    pbTotalEceran = parseInt(pbs) || 0;
+  let pkUtama = angka(pki),
+    pbUtama = angka(pbi),
+    tendikUtama = angka(tendiki);
+  let pkTotalEceran = angka(pks),
+    pbTotalEceran = angka(pbs);
   let pkHitung, pbHitung;
 
   if (mode === "ikat") {
@@ -827,12 +1178,21 @@ function tambah() {
   // ==========================================
   let totalMuatan = pkHitung + pbHitung;
   if (totalMuatan === 0) {
-    showSnackbar("Gagal: Data muatan (PK/PB) tidak boleh 0!", false);
+    showSnackbar("Gagal: Data muatan (Porsi Besar/Porsi Kecil) tidak boleh 0!", false);
     return; // Hentikan proses simpan
   }
   // ==========================================
 
   let editIdxVal = document.getElementById("editIdx").value;
+  let dupIdx = findDuplicateIndex(
+    nama,
+    editIdxVal === "" ? -1 : parseInt(editIdxVal),
+  );
+  if (dupIdx !== -1) {
+    promptDuplicate(nama, dupIdx, closeTambahModal);
+    return;
+  }
+
   let payload = {
     nama,
     mobil,
@@ -840,6 +1200,7 @@ function tambah() {
     status: "pending",
     pk_done: false,
     pb_done: false,
+    done_at: null,
     total: totalMuatan,
     pk_val: { i: pkUtama, s: pkTotalEceran },
     pb_val: { i: pbUtama, s: pbTotalEceran },
@@ -883,16 +1244,12 @@ function toggleModalPlaceholder() {
   let item = data[idx];
 
   if (mode === "porsi") {
-    pkInput.placeholder = "PK (Total Porsi)";
-    pbInput.placeholder = "PB (Total Porsi)";
     eceranElements.forEach((el) => (el.style.display = "none"));
     if (item && item.pk_val) {
       pkInput.value = item.pk_val.i * 5 + parseInt(item.pk_val.s || 0);
       pbInput.value = item.pb_val.i * 5 + parseInt(item.pb_val.s || 0);
     }
   } else {
-    pkInput.placeholder = "PK (Ikat)";
-    pbInput.placeholder = "PB (Ikat)";
     eceranElements.forEach((el) => (el.style.display = "inline-block"));
     if (item && item.pk_val) {
       pkInput.value = item.pk_val.i;
@@ -927,6 +1284,7 @@ function editSekolah(idx) {
 
   toggleModalPlaceholder();
   document.getElementById("editSekolahModal").style.display = "flex";
+  setTimeout(() => document.getElementById("modalNama").focus(), 100);
 }
 function closeEditModal() {
   document.getElementById("editSekolahModal").style.display = "none";
@@ -954,10 +1312,10 @@ function simpanPerubahanModal() {
   let modeNode = document.querySelector('input[name="modalInputMode"]:checked');
   let mode = modeNode ? modeNode.value : "ikat";
 
-  let pki = parseInt(document.getElementById("modalPk_i").value) || 0,
-    pks = parseInt(document.getElementById("modalPk_s").value) || 0;
-  let pbi = parseInt(document.getElementById("modalPb_i").value) || 0,
-    pbs = parseInt(document.getElementById("modalPb_s").value) || 0;
+  let pki = angka(document.getElementById("modalPk_i").value),
+    pks = angka(document.getElementById("modalPk_s").value);
+  let pbi = angka(document.getElementById("modalPb_i").value),
+    pbs = angka(document.getElementById("modalPb_s").value);
 
   let pkHitung, pbHitung, pkUtama, pkTotalEceran, pbUtama, pbTotalEceran;
 
@@ -982,11 +1340,18 @@ function simpanPerubahanModal() {
   // ==========================================
   let totalMuatan = pkHitung + pbHitung;
   if (totalMuatan === 0) {
-    showSnackbar("Gagal: Data muatan (PK/PB) tidak boleh 0!", false);
+    showSnackbar("Gagal: Data muatan (Porsi Besar/Porsi Kecil) tidak boleh 0!", false);
     return; // Hentikan proses simpan perubahan
   }
 
+  let dupIdx = findDuplicateIndex(nama, idx);
+  if (dupIdx !== -1) {
+    promptDuplicate(nama, dupIdx, closeEditModal);
+    return;
+  }
+
   let prev = data[idx];
+  arsipJikaBatalSelesai(prev, status);
 
   // PERBAIKAN LOGIKA PENANGANAN STATUS
   let new_pk_done = prev.pk_done;
@@ -1002,6 +1367,13 @@ function simpanPerubahanModal() {
     new_pb_done = false;
   }
 
+  let doneAt = null;
+  if (status === "done")
+    doneAt =
+      prev.status === "done"
+        ? prev.done_at || null
+        : new Date().toISOString();
+
   data[idx] = {
     nama,
     mobil,
@@ -1009,6 +1381,7 @@ function simpanPerubahanModal() {
     status,
     pk_done: new_pk_done,
     pb_done: new_pb_done,
+    done_at: doneAt,
     total: pkHitung + pbHitung,
     pk_val: { i: pkUtama, s: pkTotalEceran },
     pb_val: { i: pbUtama, s: pbTotalEceran },
@@ -1021,22 +1394,27 @@ function simpanPerubahanModal() {
 function setStatus(i, s) {
   let oldStatus = data[i].status,
     oldPk = data[i].pk_done,
-    oldPb = data[i].pb_done;
+    oldPb = data[i].pb_done,
+    oldDoneAt = data[i].done_at;
+  let arsipBefore = arsipJikaBatalSelesai(data[i], s);
   data[i].status = s;
 
   if (s === "done") {
     data[i].pk_done = true;
     data[i].pb_done = true;
+    if (!data[i].done_at) data[i].done_at = new Date().toISOString();
   } else if (s === "pending") {
     // Direset ke false dulu, tapi nanti syncStatus di update() akan benerin jika ada yang muatan 0
     data[i].pk_done = false;
     data[i].pb_done = false;
   }
+  if (s !== "done") data[i].done_at = null;
 
   deletedItem = {
     type: "status",
     index: i,
-    content: { status: oldStatus, pk: oldPk, pb: oldPb },
+    content: { status: oldStatus, pk: oldPk, pb: oldPb, doneAt: oldDoneAt },
+    arsip: arsipBefore,
   };
   update();
   let txt = s === "done" ? "SELESAI" : s === "holiday" ? "LIBUR" : "PENDING";
@@ -1049,6 +1427,7 @@ function restore(i) {
     status: "pending",
     pk_done: false,
     pb_done: false,
+    done_at: null,
   });
   historyData.splice(i, 1);
   update();
@@ -1100,6 +1479,14 @@ function undoAction() {
       data[deletedItem.index].status = deletedItem.content.status;
       data[deletedItem.index].pk_done = deletedItem.content.pk;
       data[deletedItem.index].pb_done = deletedItem.content.pb;
+      data[deletedItem.index].done_at = deletedItem.content.doneAt ?? null;
+      if (deletedItem.arsip) archiveData = deletedItem.arsip;
+    } else if (deletedItem.type === "archive_clear") {
+      archiveData = deletedItem.content;
+    } else if (deletedItem.type === "import") {
+      data = deletedItem.content.data;
+      historyData = deletedItem.content.historyData;
+      archiveData = deletedItem.content.archiveData;
     } else if (deletedItem.type === "bulk_status") {
       deletedItem.indices.forEach((i) => {
         data[i].status = deletedItem.content;
@@ -1110,6 +1497,7 @@ function undoAction() {
     // --- TAMBAHAN KONDISI UNDO BARU DI SINI ---
     else if (deletedItem.type === "bulk_reset_done") {
       data = deletedItem.content; // Kembalikan seluruh data ke kondisi awal sebelum reset
+      if (deletedItem.arsip) archiveData = deletedItem.arsip;
     }
     // -----------------------------------------
     else {
@@ -1143,8 +1531,8 @@ function closeModal() {
 }
 
 function confirmHapus(i) {
-  const svgHapus = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #ef4444;"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>`;
-  openModal(svgHapus, "Hapus", "Hapus sekolah ini?", "#ef4444", () => {
+  const svgHapus = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: var(--danger);"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>`;
+  openModal(svgHapus, "Hapus", "Hapus sekolah ini?", "var(--danger)", () => {
     deletedItem = { type: "active", index: i, content: data[i] };
     historyData.unshift(data[i]);
     data.splice(i, 1);
@@ -1154,8 +1542,8 @@ function confirmHapus(i) {
 }
 
 function confirmHapusHist(i) {
-  const svgHapusPermanen = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #ef4444;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z" /></svg>`;
-  openModal(svgHapusPermanen, "Hapus", "Hapus permanen?", "#ef4444", () => {
+  const svgHapusPermanen = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: var(--danger);"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z" /></svg>`;
+  openModal(svgHapusPermanen, "Hapus", "Hapus permanen?", "var(--danger)", () => {
     deletedItem = { type: "history", index: i, content: historyData[i] };
     historyData.splice(i, 1);
     update();
@@ -1163,13 +1551,14 @@ function confirmHapusHist(i) {
   });
 }
 
+const SVG_ALERT = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: var(--danger);"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`;
+
 function confirmClearHistory() {
-  const svgAlert = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #ef4444;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`;
   openModal(
-    svgAlert,
+    SVG_ALERT,
     "Hapus Semua",
     "Kosongkan semua riwayat permanen?",
-    "#ef4444",
+    "var(--danger)",
     () => {
       historyData = [];
       update();
@@ -1213,26 +1602,66 @@ document.addEventListener(
 
 function togglePlaceholder() {
   let mode = document.querySelector('input[name="inputMode"]:checked').value;
-  const pkInput = document.getElementById("pk_i"),
-    pbInput = document.getElementById("pb_i"),
-    tendikInput = document.getElementById("tendik_i");
+  const tendikInput = document.getElementById("tendik_i");
   const rowTendik = document.getElementById("row_tendik"),
     eceranElements = document.querySelectorAll(
       "#pk_s, #pb_s, #tendik_s, .plus-sign",
     );
 
   if (mode === "porsi") {
-    if (pkInput) pkInput.placeholder = "PK (Porsi)";
-    if (pbInput) pbInput.placeholder = "PB (Porsi)";
-    if (tendikInput) tendikInput.placeholder = "Tendik (Porsi)";
+    if (tendikInput) tendikInput.placeholder = "Tendik (Porsi Besar)";
     eceranElements.forEach((el) => (el.style.display = "none"));
     if (rowTendik) rowTendik.style.display = "flex";
   } else {
-    if (pkInput) pkInput.placeholder = "PK (Ikat)";
-    if (pbInput) pbInput.placeholder = "PB (Ikat)";
     eceranElements.forEach((el) => (el.style.display = "inline-block"));
     if (rowTendik) rowTendik.style.display = "none";
   }
+}
+
+function shareText(title, text) {
+  if (navigator.share) {
+    navigator.share({ title, text }).catch(() => console.log("Batal share"));
+  } else {
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
+  }
+}
+
+function shareRecap() {
+  let aktif = data.filter((d) => d.status !== "holiday");
+  if (aktif.length === 0) {
+    showSnackbar("Belum ada data untuk direkap", false);
+    return;
+  }
+
+  const totalDari = (d) =>
+    Number(d.total) ||
+    hitung(d.pk_val.i, d.pk_val.s) + hitung(d.pb_val.i, d.pb_val.s);
+
+  let total = aktif.reduce((sum, d) => sum + totalDari(d), 0);
+  let terdistribusi = hitungTerdistribusi(aktif);
+  let sisa = Math.max(0, total - terdistribusi);
+  let stok = stokPerMobil();
+  let tersedia = stok["Mobil 1"] + stok["Mobil 2"];
+  let done = aktif.filter((d) => d.status === "done").length;
+  let pct = (val) => (total > 0 ? Math.round((val / total) * 100) : 0);
+
+  let mobilLines = [...new Set(aktif.map((d) => d.mobil))].sort().map((m) => {
+    let items = aktif.filter((d) => d.mobil === m);
+    let mTotal = items.reduce((sum, d) => sum + totalDari(d), 0);
+    let mKirim = hitungTerdistribusi(items);
+    let mDone = items.filter((d) => d.status === "done").length;
+    return `• ${m}: ${mKirim}/${mTotal} porsi (${mDone} sekolah selesai, stok ${stok[m] ?? 0})`;
+  });
+
+  let text = `*REKAP MBG*\n${formatDateTime(new Date().toISOString())}\n\n`;
+  text += `Total Penerima: ${total}\n`;
+  text += `Terdistribusi: ${terdistribusi} (${pct(terdistribusi)}%)\n`;
+  text += `Belum Terdistribusi: ${sisa}\n`;
+  text += `Tersedia: ${tersedia} (${pct(tersedia)}%)\n`;
+  text += `Sekolah: ${done} selesai / ${aktif.length} total\n`;
+  if (mobilLines.length > 0) text += `\n*Per Mobil:*\n${mobilLines.join("\n")}`;
+
+  shareText("Rekap MBG", text);
 }
 
 function shareRitSummary(ritName) {
@@ -1245,10 +1674,11 @@ function shareRitSummary(ritName) {
     let statusTag = s.status === "done" ? "(Selesai)" : "";
     if (s.status !== "done") {
       if (s.pk_done && pk > 0 && (!s.pb_done || pb === 0))
-        statusTag = "(PK Selesai)";
-      if (!s.pk_done && s.pb_done && pb > 0) statusTag = "(PB Selesai)";
+        statusTag = "(Porsi Kecil Selesai)";
+      if (!s.pk_done && s.pb_done && pb > 0)
+        statusTag = "(Porsi Besar Selesai)";
     }
-    text += `• ${s.nama} ${statusTag}\n  PK: ${pk} | PB: ${pb}\n`;
+    text += `• ${s.nama} ${statusTag}\n  Porsi Besar: ${pb} | Porsi Kecil: ${pk}\n`;
   });
 
   let totPK = sekolahDiRitIni.reduce(
@@ -1259,15 +1689,9 @@ function shareRitSummary(ritName) {
     (sum, d) => sum + hitung(d.pb_val.i, d.pb_val.s),
     0,
   );
-  text += `\n-----------------------\n*TOTAL MUATAN:*\nPK: ${totPK}\nPB: ${totPB}`;
+  text += `\n-----------------------\n*TOTAL MUATAN:*\nPorsi Besar: ${totPB}\nPorsi Kecil: ${totPK}`;
 
-  if (navigator.share) {
-    navigator
-      .share({ title: "Jadwal Kirim", text: text })
-      .catch(() => console.log("Batal share"));
-  } else {
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
-  }
+  shareText("Jadwal Kirim", text);
 }
 
 /* =========================================
@@ -1280,16 +1704,15 @@ function showSchoolInfo(idx) {
   let pkT = hitung(s.pk_val.i, s.pk_val.s);
   let pbT = hitung(s.pb_val.i, s.pb_val.s);
 
-  let statusColor =
-    s.status === "done"
-      ? "#22c55e"
-      : s.status === "holiday"
-        ? "#64748b"
-        : "#f59e0b";
-
   let labelStatus = "PROSES";
-  if (s.status === "done") labelStatus = "SELESAI";
-  else if (s.status === "holiday") labelStatus = "LIBUR";
+  let badgeClass = "badge-pending";
+  if (s.status === "done") {
+    labelStatus = "SELESAI";
+    badgeClass = "badge-done";
+  } else if (s.status === "holiday") {
+    labelStatus = "LIBUR";
+    badgeClass = "badge-holiday";
+  }
 
   let isPkDone = s.status === "done" || s.pk_done;
   let isPbDone = s.status === "done" || s.pb_done;
@@ -1300,34 +1723,34 @@ function showSchoolInfo(idx) {
   // Render Box PK
   let pkStatusMark =
     isPkDone && pkT > 0
-      ? `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:6px; display:inline-flex; align-items:center;">${svgCentang} SELESAI</span>`
+      ? `<span class="status-mark">${svgCentang} SELESAI</span>`
       : "";
-  let pkBg = isPkDone && pkT > 0 ? "#f0fdf4" : "#fff1f2";
-  let pkBorder = isPkDone && pkT > 0 ? "#bbf7d0" : "#fecaca";
-  let pkColorText = isPkDone && pkT > 0 ? "#166534" : "#b91c1c";
-  let pkStrike = isPkDone && pkT > 0 ? "text-decoration: line-through;" : "";
+  let pkDoneClass = isPkDone && pkT > 0 ? " is-done" : "";
 
   // Render Box PB
   let pbStatusMark =
     isPbDone && pbT > 0
-      ? `<span style="background:#22c55e; color:white; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; margin-left:6px; display:inline-flex; align-items:center;">${svgCentang} SELESAI</span>`
+      ? `<span class="status-mark">${svgCentang} SELESAI</span>`
       : "";
-  let pbBg = isPbDone && pbT > 0 ? "#f0fdf4" : "#f0f9ff";
-  let pbBorder = isPbDone && pbT > 0 ? "#bbf7d0" : "#bae6fd";
-  let pbColorText = isPbDone && pbT > 0 ? "#166534" : "#0369a1";
-  let pbStrike = isPbDone && pbT > 0 ? "text-decoration: line-through;" : "";
+  let pbDoneClass = isPbDone && pbT > 0 ? " is-done" : "";
 
   let btnSelesaiHTML = "";
   if (s.status !== "done") {
-    btnSelesaiHTML = `<div style="display: flex; gap: 8px; margin-top: 15px;">`;
-    if (!s.pk_done && pkT > 0)
-      btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'PK')" style="flex:1; padding:10px; background:#ef4444; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;">PK SELESAI</button>`;
+    btnSelesaiHTML = `<div class="info-actions">`;
     if (!s.pb_done && pbT > 0)
-      btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'PB')" style="flex:1; padding:10px; background:#0ea5e9; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer;">PB SELESAI</button>`;
+      btnSelesaiHTML += `<button class="btn-sm" onclick="setSchoolStatusFromModal(${idx}, 'PB')">PORSI BESAR SELESAI</button>`;
+    if (!s.pk_done && pkT > 0)
+      btnSelesaiHTML += `<button class="btn-sm" onclick="setSchoolStatusFromModal(${idx}, 'PK')">PORSI KECIL SELESAI</button>`;
 
-    btnSelesaiHTML += `<button onclick="setSchoolStatusFromModal(${idx}, 'ALL')" style="flex:1; padding:10px; background:#22c55e; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; box-shadow:0 4px 6px rgba(34,197,94,0.2);">SELESAI</button>
+    btnSelesaiHTML += `<button class="btn-sm primary" onclick="setSchoolStatusFromModal(${idx}, 'ALL')">SELESAI</button>
     </div>`;
   }
+
+  let doneAtText = s.status === "done" ? formatDateTime(s.done_at) : "";
+  const svgClock = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 12px; height: 12px; display: inline-block;"><circle cx="12" cy="12" r="9" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2" /></svg>`;
+  let doneAtHTML = doneAtText
+    ? `<div class="info-done-at">${svgClock} Selesai ${doneAtText}</div>`
+    : "";
 
   const svgMapPin = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px; display: inline-block; vertical-align: text-bottom; margin-right: 2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25v5.25m0-5.25a4.5 4.5 0 0 1 4.5 4.5m-4.5-4.5h-9a2.25 2.25 0 0 0-2.25 2.25v7.5" /></svg>`;
 
@@ -1335,35 +1758,36 @@ function showSchoolInfo(idx) {
 
   document.getElementById("infoModalTitle").innerText = s.nama;
   document.getElementById("infoModalContent").innerHTML = `
-        <div style="text-align: center; margin-bottom: 15px;">
-            <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;">
+        <div class="info-head">
+            <span class="badge ${badgeClass}">
                 ${labelStatus}
             </span>
-            <div style="display: flex; justify-content: center; gap: 15px; margin-top: 10px; font-size: 12px; color: #64748b; font-weight: 700;">
-                <span style="display: flex; align-items: center;">${svgMapPin} ${s.mobil}</span>
-                <span style="display: flex; align-items: center;">${svgTrukMini} ${s.rit || "Rit 1"}</span>
+            <div class="info-meta">
+                <span>${svgMapPin} ${s.mobil}</span>
+                <span>${svgTrukMini} ${s.rit || "Rit 1"}</span>
+            </div>
+        </div>
+        ${doneAtHTML}
+
+        <div class="info-box pb${pbDoneClass}">
+            <div class="info-box-label">Porsi Besar ${pbStatusMark}</div>
+            <div class="info-box-value">
+                <span class="big">${pbT}</span>
+                <span class="small">${s.pb_val.i} ikat + ${s.pb_val.s}</span>
             </div>
         </div>
 
-        <div style="background: ${pkBg}; padding: 12px; border-radius: 12px; border: 1px solid ${pkBorder}; margin-bottom: 10px; position:relative;">
-            <div style="font-size: 10px; font-weight: 800; color: ${pkColorText}; margin-bottom: 4px; text-transform: uppercase; display: flex; align-items: center;">PK ${pkStatusMark}</div>
-            <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                <span style="font-size: 20px; font-weight: 900; color: ${pkColorText}; ${pkStrike}">${pkT}</span>
-                <span style="font-size: 12px; font-weight: 600; color: ${pkColorText}; ${pkStrike}">${s.pk_val.i} ikat + ${s.pk_val.s}</span>
+        <div class="info-box pk${pkDoneClass}">
+            <div class="info-box-label">Porsi Kecil ${pkStatusMark}</div>
+            <div class="info-box-value">
+                <span class="big">${pkT}</span>
+                <span class="small">${s.pk_val.i} ikat + ${s.pk_val.s}</span>
             </div>
         </div>
 
-        <div style="background: ${pbBg}; padding: 12px; border-radius: 12px; border: 1px solid ${pbBorder}; margin-bottom: 10px; position:relative;">
-            <div style="font-size: 10px; font-weight: 800; color: ${pbColorText}; margin-bottom: 4px; text-transform: uppercase; display: flex; align-items: center;">PB ${pbStatusMark}</div>
-            <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                <span style="font-size: 20px; font-weight: 900; color: ${pbColorText}; ${pbStrike}">${pbT}</span>
-                <span style="font-size: 12px; font-weight: 600; color: ${pbColorText}; ${pbStrike}">${s.pb_val.i} ikat + ${s.pb_val.s}</span>
-            </div>
-        </div>
-
-        <div style="padding: 12px; background: #1e293b; border-radius: 12px; text-align: center; color: white;">
-            <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Total Keseluruhan</div>
-            <div style="font-size: 32px; font-weight: 900; color: #f8fafc; margin-top: 2px;">${s.total}</div>
+        <div class="info-total">
+            <div class="info-total-label">Total Keseluruhan</div>
+            <div class="info-total-value">${s.total}</div>
         </div>
         ${btnSelesaiHTML}
     `;
@@ -1396,7 +1820,8 @@ function setSchoolStatusFromModal(idx, type) {
   update(); // Otomatis memeriksa apakah keduanya true lalu diset done lewat fungsi syncStatus()
   closeInfoModal();
 
-  let msg = type === "ALL" ? "SEMUA" : type;
+  let msg =
+    type === "PB" ? "Porsi Besar" : type === "PK" ? "Porsi Kecil" : "SEMUA";
   showSnackbar(`${s.nama} - ${msg} Selesai`, true);
 }
 
@@ -1420,28 +1845,32 @@ function confirmResetAllDone() {
     return;
   }
 
-  const svgRefresh = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: #f59e0b;"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99જી" /></svg>`;
+  const svgRefresh = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 36px; height: 36px; color: var(--warning-text);"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99જી" /></svg>`;
 
   openModal(
     svgRefresh,
     "Kembalikan ke Proses",
-    `Kembalikan ${targetIndices.length} sekolah yang selesai menjadi berstatus proses?`,
-    "#f59e0b",
+    `Kembalikan ${targetIndices.length} sekolah yang selesai menjadi berstatus proses? Data selesai akan disimpan ke Arsip Harian.`,
+    "var(--warning-text)",
     () => {
       // 3. Simpan state lama untuk fitur UNDO (jaga-jaga jika salah klik)
       // Simpan salinan data sebelum diubah
       let backupData = JSON.parse(JSON.stringify(data));
+      let arsipBefore = JSON.parse(JSON.stringify(archiveData));
+      arsipkanSelesai();
 
       targetIndices.forEach((i) => {
         data[i].status = "pending";
         data[i].pk_done = false;
         data[i].pb_done = false;
+        data[i].done_at = null;
       });
 
       // Rekam untuk memori undo
       deletedItem = {
         type: "bulk_reset_done",
         content: backupData,
+        arsip: arsipBefore,
       };
 
       update();
