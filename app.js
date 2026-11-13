@@ -8,6 +8,7 @@ if (!Array.isArray(archiveData)) archiveData = [];
 
 let deletedItem = null;
 let deleteTimeout = null;
+let riwayatTabAktif = null;
 
 const setTxt = (id, val) => {
   const el = document.getElementById(id);
@@ -16,6 +17,8 @@ const setTxt = (id, val) => {
 const hitung = (i, s) =>
   Math.max(0, parseInt(i) || 0) * 5 + Math.max(0, parseInt(s) || 0);
 const angka = (v) => Math.max(0, parseInt(v) || 0);
+
+let absensiData = muatAbsensi();
 
 function formatDateTime(iso) {
   if (!iso) return "";
@@ -76,7 +79,41 @@ function showPage(pId, el) {
     const navItems = document.querySelectorAll(".nav-item");
     if (pId === "dashboard") navItems[0].classList.add("active");
   }
+
+  const fab = document.querySelector(".fab-add");
+  if (fab) fab.hidden = pId === "absensi";
+
   update();
+  if (pId === "absensi") renderAbsensi();
+  if (pId === "historis") {
+    if (!riwayatTabAktif) {
+      riwayatTabAktif =
+        archiveData.length === 0 && historyData.length > 0
+          ? "history"
+          : "arsip";
+    }
+    showRiwayatTab(riwayatTabAktif);
+  }
+}
+
+function showRiwayatTab(tab) {
+  riwayatTabAktif = tab === "history" ? "history" : "arsip";
+  const isArsip = riwayatTabAktif === "arsip";
+  const arsipSection = document.getElementById("arsipSection");
+  const historySection = document.getElementById("historySection");
+  const tabArsip = document.getElementById("tabArsip");
+  const tabHistory = document.getElementById("tabHistory");
+
+  if (arsipSection) arsipSection.hidden = !isArsip;
+  if (historySection) historySection.hidden = isArsip;
+  if (tabArsip) {
+    tabArsip.classList.toggle("active", isArsip);
+    tabArsip.setAttribute("aria-selected", String(isArsip));
+  }
+  if (tabHistory) {
+    tabHistory.classList.toggle("active", !isArsip);
+    tabHistory.setAttribute("aria-selected", String(!isArsip));
+  }
 }
 
 /* =========================================
@@ -229,30 +266,47 @@ function update() {
     }
   });
   // --- HITUNG JUMLAH SEKOLAH YANG SIAP DIKIRIM ---
-  let jumlahSekolahSiap = data.filter(
-    (d) => d._isSiap && d.status === "pending",
-  ).length;
+  let jumlahSekolahSiap = 0;
+  const siapPerMobil = { "Mobil 1": 0, "Mobil 2": 0 };
+  data.forEach((d) => {
+    if (d._isSiap && d.status === "pending") {
+      jumlahSekolahSiap++;
+      if (siapPerMobil[d.mobil] !== undefined) siapPerMobil[d.mobil]++;
+    }
+  });
   const elRingkasanSiap = document.getElementById("ringkasanSiap");
+  const elRingkasanMobil = document.getElementById("ringkasanMobil");
 
   if (elRingkasanSiap) {
-    if (readyVal === 0 || !readyVal) {
+    if (!readyVal) {
       elRingkasanSiap.innerText = ""; // Sembunyikan jika input kosong/0
     } else if (jumlahSekolahSiap > 0) {
-      elRingkasanSiap.innerText = `Stok cukup untuk ${jumlahSekolahSiap} sekolah`;
+      elRingkasanSiap.innerText = `Total ${readyVal} · ${jumlahSekolahSiap} sekolah siap`;
       elRingkasanSiap.style.color = "var(--success)";
     } else {
-      elRingkasanSiap.innerText = "Stok belum cukup untuk sekolah berikutnya";
+      elRingkasanSiap.innerText = `Total ${readyVal} · belum cukup untuk sekolah berikutnya`;
       elRingkasanSiap.style.color = "var(--danger)";
     }
   }
 
-  let aktif = data.filter((d) => d.status !== "holiday");
-  let done = data.filter((d) => d.status === "done");
+  if (elRingkasanMobil) {
+    elRingkasanMobil.innerText = readyVal
+      ? `Mobil 1: ${siapPerMobil["Mobil 1"]} siap · Mobil 2: ${siapPerMobil["Mobil 2"]} siap`
+      : "";
+  }
 
-  const donePill = document.getElementById("sekolahDoneCount");
-  if (donePill) {
-    donePill.innerText = done.length ? `${done.length} sekolah selesai` : "";
-    donePill.parentElement.hidden = done.length === 0;
+  let aktif = data.filter((d) => d.status !== "holiday");
+  let pending = data.filter((d) => d.status === "pending");
+  let done = data.filter((d) => d.status === "done");
+  let siap = data.filter((d) => d._isSiap).length;
+
+  const dashRingkasan = document.getElementById("dashRingkasan");
+  if (dashRingkasan) {
+    const adaSekolah = pending.length + done.length > 0;
+    dashRingkasan.innerText = adaSekolah
+      ? `${pending.length} proses · ${done.length} selesai · ${siap} siap`
+      : "";
+    dashRingkasan.parentElement.hidden = !adaSekolah;
   }
 
   const btnRecap = document.getElementById("btnRecap");
@@ -405,6 +459,8 @@ function update() {
   localStorage.setItem("ultra_v10_data", JSON.stringify(data));
   localStorage.setItem("ultra_v10_hist", JSON.stringify(historyData));
   localStorage.setItem("ultra_v10_arsip", JSON.stringify(archiveData));
+  localStorage.setItem("ultra_v10_absensi", JSON.stringify(absensiData));
+  renderBadges();
   renderBackupNote();
   render();
 }
@@ -638,6 +694,19 @@ function render() {
     );
   });
 
+  const listCount = document.getElementById("listCount");
+  if (listCount) {
+    const adaFilter =
+      search !== "" ||
+      fMobil !== "Semua" ||
+      fRit !== "Semua" ||
+      fStatus !== "Semua";
+    const tampil = adaFilter && data.length > 0;
+    listCount.hidden = !tampil;
+    if (tampil)
+      listCount.innerText = `Menampilkan ${filtered.length} dari ${data.length} sekolah`;
+  }
+
   // TAMPILAN JIKA HALAMAN SEKOLAH KOSONG
   if (filtered.length === 0) {
     listActive.innerHTML = `
@@ -713,7 +782,7 @@ function render() {
 
       let doneAtHTML =
         d.status === "done" && d.done_at
-          ? `<div class="item-done-at">Selesai ${formatDateTime(d.done_at)}</div>`
+          ? `<span class="item-done-at">Selesai ${formatDateTime(d.done_at)}</span>`
           : "";
 
       let pkClass = isPkDone && pkT > 0 ? "kv-row pk is-done" : "kv-row pk";
@@ -727,6 +796,7 @@ function render() {
                         <span class="mobil-tag ${mobilClass}">${d.mobil}</span>
                         <span class="rit-tag">${ritLabel.toUpperCase()}</span>
                         ${rekLabel}
+                        ${doneAtHTML}
                     </div>
                     <span class="item-title">${d.nama}</span>
                     ${schoolProgressBarHTML}
@@ -740,7 +810,6 @@ function render() {
                         <div class="total-row">
                             TOTAL: ${d.total}
                         </div>
-                        ${doneAtHTML}
                     </div>
                 </div>`;
     });
@@ -862,10 +931,21 @@ function confirmClearArchive() {
 
 function renderArsip() {
   const list = document.getElementById("listArsip");
-  const section = document.getElementById("arsipSection");
-  if (!list || !section) return;
+  if (!list) return;
 
-  section.hidden = archiveData.length === 0;
+  if (archiveData.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+        </svg>
+        <h4>Arsip Kosong</h4>
+        <p>Belum ada arsip harian.</p>
+      </div>
+    `;
+    return;
+  }
+
   list.innerHTML = [...archiveData]
     .sort((a, b) => (b.tanggal || "").localeCompare(a.tanggal || ""))
     .map((a) => {
@@ -895,6 +975,879 @@ function renderArsip() {
 }
 
 /* =========================================
+   ABSENSI & REKAP GAJI
+   ========================================= */
+const NAMA_HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+
+function absensiKosong() {
+  return {
+    peserta: [],
+    catatan: {},
+    pengaturan: { uangIzin: 5000 },
+    periode: null,
+  };
+}
+
+function parseTanggal(tanggal) {
+  const [y, m, d] = String(tanggal || "").split("-").map(Number);
+  if (!y || !m || !d) return new Date(NaN);
+  return new Date(y, m - 1, d);
+}
+
+function tanggalValid(tanggal) {
+  if (typeof tanggal !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(tanggal))
+    return false;
+  const d = parseTanggal(tanggal);
+  const [y, m, day] = tanggal.split("-").map(Number);
+  return (
+    !isNaN(d.getTime()) &&
+    d.getFullYear() === y &&
+    d.getMonth() === m - 1 &&
+    d.getDate() === day
+  );
+}
+
+function tanggalStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function tambahHari(tanggal, jumlah) {
+  const d = parseTanggal(tanggal);
+  if (isNaN(d.getTime())) return tanggal;
+  d.setDate(d.getDate() + jumlah);
+  return tanggalStr(d);
+}
+
+function hariKerja(tanggal) {
+  const d = parseTanggal(tanggal);
+  if (isNaN(d.getTime())) return false;
+  const hari = d.getDay();
+  return hari >= 1 && hari <= 5;
+}
+
+function labelTanggal(tanggal) {
+  const d = parseTanggal(tanggal);
+  if (isNaN(d.getTime())) return tanggal || "";
+  return `${NAMA_HARI[d.getDay()]}, ${formatTanggal(tanggal)}`;
+}
+
+function rupiah(nilai) {
+  return "Rp" + Math.round(Number(nilai) || 0).toLocaleString("id-ID");
+}
+
+function escHtml(nilai) {
+  return String(nilai ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+}
+
+function normalisasiAbsensi(raw) {
+  const out = absensiKosong();
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+
+  const idDipakai = new Set();
+  (Array.isArray(raw.peserta) ? raw.peserta : []).forEach((p) => {
+    if (!p || typeof p !== "object") return;
+    const nama = typeof p.nama === "string"
+      ? p.nama.trim().replace(/\s+/g, " ").toUpperCase()
+      : "";
+    if (!nama || /[<>]/.test(nama)) return;
+    let id =
+      typeof p.id === "string" &&
+      /^(?!__proto__$)[A-Za-z0-9_-]{1,40}$/.test(p.id)
+        ? p.id
+        : "";
+    if (!id || idDipakai.has(id))
+      id = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    idDipakai.add(id);
+    out.peserta.push({
+      id,
+      nama,
+      tarif: angka(p.tarif),
+      aktif: p.aktif !== false,
+    });
+  });
+
+  const setting =
+    raw.pengaturan && typeof raw.pengaturan === "object" ? raw.pengaturan : {};
+  out.pengaturan.uangIzin =
+    setting.uangIzin === undefined ? 5000 : angka(setting.uangIzin);
+
+  const catatan =
+    raw.catatan && typeof raw.catatan === "object" && !Array.isArray(raw.catatan)
+      ? raw.catatan
+      : {};
+  Object.keys(catatan).forEach((tanggal) => {
+    if (!tanggalValid(tanggal)) return;
+    const harian = catatan[tanggal];
+    if (!harian || typeof harian !== "object" || Array.isArray(harian)) return;
+    const bersih = {};
+    Object.keys(harian).forEach((id) => {
+      if (!idDipakai.has(id)) return;
+      const e = harian[id];
+      if (!e || typeof e !== "object") return;
+      if (e.status !== "hadir" && e.status !== "izin") return;
+      bersih[id] = {
+        status: e.status,
+        tarif: angka(e.tarif),
+        izinPay:
+          e.status === "izin"
+            ? angka(
+                e.izinPay === undefined ? out.pengaturan.uangIzin : e.izinPay,
+              )
+            : 0,
+      };
+    });
+    if (Object.keys(bersih).length) out.catatan[tanggal] = bersih;
+  });
+
+  const periode = raw.periode;
+  if (
+    periode &&
+    tanggalValid(periode.mulai) &&
+    tanggalValid(periode.selesai) &&
+    periode.mulai <= periode.selesai
+  ) {
+    out.periode = { mulai: periode.mulai, selesai: periode.selesai };
+  }
+
+  return out;
+}
+
+function muatAbsensi() {
+  let raw = null;
+  try {
+    raw = JSON.parse(localStorage.getItem("ultra_v10_absensi") || "null");
+  } catch {
+    raw = null;
+  }
+  return normalisasiAbsensi(raw);
+}
+
+function simpanAbsensi() {
+  localStorage.setItem("ultra_v10_absensi", JSON.stringify(absensiData));
+}
+
+function cariPeserta(id) {
+  return absensiData.peserta.find((p) => p.id === id);
+}
+
+function periodeDefault() {
+  const now = new Date();
+  const hari = now.getDay();
+  const geser = hari === 0 ? 1 : hari === 6 ? 2 : 1 - hari;
+  const mulai = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + geser,
+  );
+  const selesai = new Date(
+    mulai.getFullYear(),
+    mulai.getMonth(),
+    mulai.getDate() + 11,
+  );
+  return { mulai: tanggalStr(mulai), selesai: tanggalStr(selesai) };
+}
+
+function pastikanPeriode() {
+  if (!absensiData.periode) {
+    absensiData.periode = periodeDefault();
+    simpanAbsensi();
+  }
+  return absensiData.periode;
+}
+
+function hariKerjaList(mulai, selesai) {
+  const out = [];
+  if (!tanggalValid(mulai) || !tanggalValid(selesai) || mulai > selesai)
+    return out;
+  let tanggal = mulai;
+  // shortcut: rekap dibatasi 730 hari agar salah isi periode tidak membekukan UI
+  for (let i = 0; i < 730 && tanggal <= selesai; i++) {
+    if (hariKerja(tanggal)) out.push(tanggal);
+    tanggal = tambahHari(tanggal, 1);
+  }
+  return out;
+}
+
+function akhirNHariKerja(mulai, n) {
+  let tanggal = tanggalValid(mulai) ? mulai : tanggalStr(new Date());
+  let jumlah = 0;
+  for (let i = 0; i < 400; i++) {
+    if (hariKerja(tanggal)) {
+      jumlah++;
+      if (jumlah === n) return tanggal;
+    }
+    tanggal = tambahHari(tanggal, 1);
+  }
+  return tanggal;
+}
+
+function tanggalGajian(selesai) {
+  const d = parseTanggal(selesai);
+  if (isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7));
+  return tanggalStr(d);
+}
+
+function tanggalAbsensi() {
+  const el = document.getElementById("absensiTanggal");
+  const tanggal = el && el.value ? el.value : tanggalLokal();
+  if (el && !el.value) el.value = tanggal;
+  return tanggal;
+}
+
+function hitungUpahHarian(tanggal) {
+  const catatan = absensiData.catatan[tanggal] || {};
+  const hadir = [];
+  const izin = [];
+
+  Object.keys(catatan).forEach((id) => {
+    const p = cariPeserta(id);
+    if (!p) return;
+    const rec = catatan[id];
+    if (rec.status === "hadir") {
+      hadir.push({
+        id,
+        nama: p.nama,
+        tarif: angka(rec.tarif),
+        bonus: 0,
+        total: angka(rec.tarif),
+      });
+    } else if (rec.status === "izin") {
+      izin.push({
+        id,
+        nama: p.nama,
+        tarif: angka(rec.tarif),
+        izinPay: angka(rec.izinPay),
+        total: angka(rec.izinPay),
+      });
+    }
+  });
+
+  const urutNama = (a, b) =>
+    a.nama.localeCompare(b.nama, "id") || a.id.localeCompare(b.id);
+  hadir.sort(urutNama);
+  izin.sort(urutNama);
+
+  const pool = izin.reduce(
+    (total, r) => total + Math.max(0, r.tarif - r.izinPay),
+    0,
+  );
+  const takTerbagi = hadir.length ? 0 : pool;
+  if (hadir.length) {
+    const dasar = Math.floor(pool / hadir.length);
+    const sisa = pool % hadir.length;
+    hadir.forEach((r, i) => {
+      r.bonus = dasar + (i < sisa ? 1 : 0);
+      r.total = r.tarif + r.bonus;
+    });
+  }
+
+  const totalHadir = hadir.reduce((total, r) => total + r.total, 0);
+  const totalIzin = izin.reduce((total, r) => total + r.total, 0);
+  return {
+    tanggal,
+    hadir,
+    izin,
+    pool,
+    takTerbagi,
+    hadirCount: hadir.length,
+    izinCount: izin.length,
+    totalHadir,
+    totalIzin,
+    total: totalHadir + totalIzin,
+  };
+}
+
+function hitungRekapPeriode() {
+  const periode = pastikanPeriode();
+  const tanggalKerja = hariKerjaList(periode.mulai, periode.selesai);
+  const map = Object.create(null);
+  let takTerbagi = 0;
+
+  const baris = (id) => {
+    const p = cariPeserta(id);
+    if (!p) return null;
+    if (!map[id])
+      map[id] = {
+        id,
+        nama: p.nama,
+        aktif: p.aktif,
+        hadir: 0,
+        izin: 0,
+        uangIzin: 0,
+        bonus: 0,
+        total: 0,
+      };
+    return map[id];
+  };
+
+  absensiData.peserta.forEach((p) => {
+    if (p.aktif) baris(p.id);
+  });
+
+  tanggalKerja.forEach((tanggal) => {
+    const harian = hitungUpahHarian(tanggal);
+    takTerbagi += harian.takTerbagi;
+    harian.hadir.forEach((r) => {
+      const row = baris(r.id);
+      if (row) {
+        row.hadir++;
+        row.bonus += r.bonus;
+        row.total += r.total;
+      }
+    });
+    harian.izin.forEach((r) => {
+      const row = baris(r.id);
+      if (row) {
+        row.izin++;
+        row.uangIzin += r.izinPay;
+        row.total += r.total;
+      }
+    });
+  });
+
+  const rows = Object.values(map).sort(
+    (a, b) => a.nama.localeCompare(b.nama, "id") || a.id.localeCompare(b.id),
+  );
+  return { periode, tanggalKerja, rows, takTerbagi };
+}
+
+function detailPeserta(id) {
+  const periode = pastikanPeriode();
+  const hadir = [];
+  const izin = [];
+  let tarifHadir = 0;
+  let bonus = 0;
+  let uangIzin = 0;
+  let potongan = 0;
+
+  hariKerjaList(periode.mulai, periode.selesai).forEach((tanggal) => {
+    const harian = hitungUpahHarian(tanggal);
+    const h = harian.hadir.find((r) => r.id === id);
+    if (h) {
+      hadir.push({
+        tanggal,
+        tarif: h.tarif,
+        bonus: h.bonus,
+        total: h.total,
+      });
+      tarifHadir += h.tarif;
+      bonus += h.bonus;
+    }
+    const i = harian.izin.find((r) => r.id === id);
+    if (i) {
+      const pot = Math.max(0, i.tarif - i.izinPay);
+      izin.push({
+        tanggal,
+        tarif: i.tarif,
+        izinPay: i.izinPay,
+        potongan: pot,
+        total: i.total,
+      });
+      uangIzin += i.izinPay;
+      potongan += pot;
+    }
+  });
+
+  return {
+    periode,
+    hadir,
+    izin,
+    tarifHadir,
+    bonus,
+    uangIzin,
+    potongan,
+    total: tarifHadir + bonus + uangIzin,
+  };
+}
+
+function pesertaHarian(tanggal) {
+  const catatan = absensiData.catatan[tanggal] || {};
+  return absensiData.peserta
+    .filter((p) => p.aktif || catatan[p.id])
+    .sort((a, b) => a.nama.localeCompare(b.nama, "id") || a.id.localeCompare(b.id));
+}
+
+function tandaiAbsensi(id, status) {
+  const tanggal = tanggalAbsensi();
+  if (!hariKerja(tanggal)) {
+    showSnackbar("Gagal: akhir pekan bukan hari kerja", false);
+    return;
+  }
+  const p = cariPeserta(id);
+  if (!p) return;
+
+  const catatan = absensiData.catatan[tanggal] || {};
+  if (catatan[id] && catatan[id].status === status) {
+    delete catatan[id];
+    if (Object.keys(catatan).length) absensiData.catatan[tanggal] = catatan;
+    else delete absensiData.catatan[tanggal];
+    simpanAbsensi();
+    renderAbsensi();
+    showSnackbar("Absensi dibatalkan", false);
+    return;
+  }
+
+  absensiData.catatan[tanggal] = catatan;
+  catatan[id] = {
+    status,
+    tarif: angka(p.tarif),
+    izinPay: status === "izin" ? angka(absensiData.pengaturan.uangIzin) : 0,
+  };
+  simpanAbsensi();
+  renderAbsensi();
+  showSnackbar(status === "izin" ? "Izin dicatat" : "Hadir dicatat", false);
+}
+
+function bukaPesertaModal(id) {
+  const modal = document.getElementById("pesertaModal");
+  if (!modal) return;
+  const p = id ? cariPeserta(id) : null;
+
+  document.getElementById("pesertaId").value = p ? p.id : "";
+  document.getElementById("pesertaNama").value = p ? p.nama : "";
+  document.getElementById("pesertaTarif").value = p ? p.tarif : "";
+  document.getElementById("pesertaModalTitle").innerText = p
+    ? "Edit Peserta"
+    : "Tambah Peserta";
+  const btn = document.getElementById("btnNonaktifPeserta");
+  if (btn) btn.hidden = !p || !p.aktif;
+
+  modal.style.display = "flex";
+}
+
+function closePesertaModal() {
+  const modal = document.getElementById("pesertaModal");
+  if (modal) modal.style.display = "none";
+  const idEl = document.getElementById("pesertaId");
+  if (idEl) idEl.value = "";
+}
+
+function bukaDetailPeserta(id) {
+  const modal = document.getElementById("pesertaDetailModal");
+  const p = cariPeserta(id);
+  if (!modal || !p) return;
+
+  const d = detailPeserta(id);
+  const hadirHtml = d.hadir.length
+    ? d.hadir
+        .map(
+          (r) => `<div class="detail-day">
+            <div class="detail-day-main">
+              <div class="detail-day-date">${labelTanggal(r.tanggal)}</div>
+              <div class="detail-day-meta">Hadir &middot; ${rupiah(r.tarif)}${
+                r.bonus > 0 ? ` + bonus ${rupiah(r.bonus)}` : ""
+              }</div>
+            </div>
+            <div class="detail-day-total">${rupiah(r.total)}</div>
+          </div>`,
+        )
+        .join("")
+    : '<div class="detail-empty">Belum ada hari Hadir.</div>';
+  const izinHtml = d.izin.length
+    ? d.izin
+        .map(
+          (r) => `<div class="detail-day">
+            <div class="detail-day-main">
+              <div class="detail-day-date">${labelTanggal(r.tanggal)}</div>
+              <div class="detail-day-meta">Izin &middot; Uang izin ${rupiah(r.izinPay)}${
+                r.potongan > 0 ? ` &middot; ${rupiah(r.potongan)} dialihkan` : ""
+              }</div>
+            </div>
+            <div class="detail-day-total">${rupiah(r.total)}</div>
+          </div>`,
+        )
+        .join("")
+    : '<div class="detail-empty">Belum ada hari Izin.</div>';
+
+  document.getElementById("pesertaDetailTitle").innerText = p.nama;
+  document.getElementById("pesertaDetailContent").innerHTML = `
+    <div class="detail-head">
+      <span class="detail-tarif">Tarif saat ini ${rupiah(p.tarif)} / hari</span>
+      ${p.aktif ? "" : ' <span class="absensi-badge">Nonaktif</span>'}
+    </div>
+    <div class="detail-period">Periode ${formatTanggal(d.periode.mulai)} &ndash; ${formatTanggal(d.periode.selesai)}</div>
+    <div class="detail-summary">
+      <div class="detail-summary-row"><span>Hadir (${d.hadir.length} hari)</span><strong>${rupiah(d.tarifHadir)}</strong></div>
+      <div class="detail-summary-row"><span>Izin (${d.izin.length} hari)</span><strong>${rupiah(d.uangIzin)}</strong></div>
+      <div class="detail-summary-row"><span>Bonus izin</span><strong>${rupiah(d.bonus)}</strong></div>
+      <div class="detail-summary-row warning"><span>Potongan izin</span><strong>${rupiah(d.potongan)}</strong></div>
+      <div class="detail-summary-row total"><span>Pendapatan</span><strong>${rupiah(d.total)}</strong></div>
+    </div>
+    <div class="detail-note">Potongan izin adalah tarif hari izin yang tidak dibayarkan.</div>
+    <div class="detail-section">
+      <div class="detail-section-title">Tanggal Hadir</div>
+      ${hadirHtml}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Tanggal Izin</div>
+      ${izinHtml}
+    </div>`;
+  modal.style.display = "flex";
+}
+
+function closePesertaDetail() {
+  const modal = document.getElementById("pesertaDetailModal");
+  if (modal) modal.style.display = "none";
+}
+
+function simpanPeserta() {
+  const idEl = document.getElementById("pesertaId");
+  const id = idEl ? idEl.value : "";
+  const nama = (document.getElementById("pesertaNama").value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+  const tarif = angka(document.getElementById("pesertaTarif").value);
+
+  if (!nama) {
+    showSnackbar("Gagal: Nama peserta harus diisi", false);
+    return;
+  }
+  if (/[<>]/.test(nama)) {
+    showSnackbar("Gagal: Nama peserta tidak valid", false);
+    return;
+  }
+  if (absensiData.peserta.some((p) => p.id !== id && p.nama === nama)) {
+    showSnackbar("Gagal: Nama peserta sudah ada", false);
+    return;
+  }
+
+  if (id) {
+    const p = cariPeserta(id);
+    if (!p) return;
+    p.nama = nama;
+    p.tarif = tarif;
+    showSnackbar("Peserta diperbarui", false);
+  } else {
+    absensiData.peserta.push({
+      id:
+        "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      nama,
+      tarif,
+      aktif: true,
+    });
+    showSnackbar("Peserta ditambahkan", false);
+  }
+
+  simpanAbsensi();
+  closePesertaModal();
+  renderAbsensi();
+}
+
+function nonaktifkanPeserta() {
+  const idEl = document.getElementById("pesertaId");
+  const p = cariPeserta(idEl ? idEl.value : "");
+  if (!p) return;
+  p.aktif = false;
+  simpanAbsensi();
+  closePesertaModal();
+  renderAbsensi();
+  showSnackbar("Peserta dinonaktifkan", false);
+}
+
+function aktifkanPeserta(id) {
+  const p = cariPeserta(id);
+  if (!p) return;
+  p.aktif = true;
+  simpanAbsensi();
+  renderAbsensi();
+  showSnackbar("Peserta diaktifkan kembali", false);
+}
+
+function ubahPeriode() {
+  const mulai = document.getElementById("periodeMulai").value;
+  const selesai = document.getElementById("periodeSelesai").value;
+  if (!mulai || !selesai) {
+    renderAbsensi();
+    return;
+  }
+  if (mulai > selesai) {
+    showSnackbar("Gagal: Mulai harus sebelum Selesai", false);
+    renderAbsensi();
+    return;
+  }
+  absensiData.periode = { mulai, selesai };
+  simpanAbsensi();
+  renderAbsensi();
+}
+
+function periode10Hari() {
+  const mulai = pastikanPeriode().mulai;
+  absensiData.periode = { mulai, selesai: akhirNHariKerja(mulai, 10) };
+  simpanAbsensi();
+  renderAbsensi();
+}
+
+function geserPeriode(hari) {
+  const periode = pastikanPeriode();
+  absensiData.periode = {
+    mulai: tambahHari(periode.mulai, hari),
+    selesai: tambahHari(periode.selesai, hari),
+  };
+  simpanAbsensi();
+  renderAbsensi();
+}
+
+function simpanUangIzin() {
+  const el = document.getElementById("uangIzinInput");
+  if (!el) return;
+  const nilai = el.value === "" ? 5000 : angka(el.value);
+  absensiData.pengaturan.uangIzin = nilai;
+  el.value = nilai;
+  simpanAbsensi();
+  renderAbsensi();
+  showSnackbar("Uang izin disimpan", false);
+}
+
+function renderBadges() {
+  const sekolahPending = data.filter((d) => d.status === "pending").length;
+  const totalArsip = archiveData.reduce(
+    (sum, a) => sum + (Array.isArray(a.items) ? a.items.length : 0),
+    0,
+  );
+  const pesertaAktif = absensiData.peserta.filter((p) => p.aktif).length;
+  const badges = {
+    dashBadge: sekolahPending,
+    navDashBadge: sekolahPending,
+    sekolahBadge: data.length,
+    navSekolahBadge: data.length,
+    arsipBadge: totalArsip,
+    historyBadge: historyData.length,
+    riwayatBadge: totalArsip + historyData.length,
+    navRiwayatBadge: totalArsip + historyData.length,
+    absensiPesertaBadge: pesertaAktif,
+    navAbsensiBadge: pesertaAktif,
+  };
+  Object.entries(badges).forEach(([id, jumlah]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerText = jumlah;
+    el.hidden = jumlah === 0;
+  });
+}
+
+function renderAbsensi() {
+  if (!document.getElementById("listAbsensi")) return;
+
+  const periode = pastikanPeriode();
+
+  const mulaiEl = document.getElementById("periodeMulai");
+  const selesaiEl = document.getElementById("periodeSelesai");
+  if (mulaiEl && document.activeElement !== mulaiEl)
+    mulaiEl.value = periode.mulai;
+  if (selesaiEl && document.activeElement !== selesaiEl)
+    selesaiEl.value = periode.selesai;
+
+  const uangEl = document.getElementById("uangIzinInput");
+  if (uangEl && document.activeElement !== uangEl)
+    uangEl.value = absensiData.pengaturan.uangIzin;
+
+  const tanggal = tanggalAbsensi();
+  const info = document.getElementById("absensiInfo");
+  const list = document.getElementById("listAbsensi");
+  const ringkasan = document.getElementById("ringkasanAbsensi");
+
+  if (!hariKerja(tanggal)) {
+    info.innerHTML = `<strong>${escHtml(labelTanggal(tanggal))}</strong> &middot; Akhir pekan tidak dihitung sebagai hari kerja.`;
+    list.innerHTML =
+      '<div class="absensi-empty">Pilih tanggal Senin&ndash;Jumat untuk mencatat absensi.</div>';
+    ringkasan.innerHTML = "";
+    const rincianKosong = document.getElementById("rincianIzin");
+    if (rincianKosong) rincianKosong.innerHTML = "";
+    const rincianWrapKosong = document.getElementById("rincianIzinWrap");
+    if (rincianWrapKosong) rincianWrapKosong.hidden = true;
+  } else {
+    const harian = hitungUpahHarian(tanggal);
+    const rows = pesertaHarian(tanggal);
+    const upahHarian = Object.create(null);
+    harian.hadir.forEach((r) => (upahHarian[r.id] = r));
+    harian.izin.forEach((r) => (upahHarian[r.id] = r));
+    const diLuarPeriode =
+      tanggal < periode.mulai || tanggal > periode.selesai;
+    info.innerHTML = `<strong>${escHtml(labelTanggal(tanggal))}</strong> &middot; ${harian.hadirCount} Hadir &middot; ${harian.izinCount} Izin${diLuarPeriode ? " &middot; di luar periode" : ""}`;
+
+    if (!rows.length) {
+      list.innerHTML =
+        '<div class="absensi-empty">Belum ada peserta. Tekan <strong>+ Peserta</strong> untuk menambah.</div>';
+    } else {
+      list.innerHTML = rows
+        .map((p) => {
+          const rec = (absensiData.catatan[tanggal] || {})[p.id];
+          const tarifTampil = rec ? angka(rec.tarif) : p.tarif;
+          const upah = upahHarian[p.id];
+          const uangIzinTampil =
+            rec && rec.status === "izin"
+              ? ` &middot; Uang izin ${rupiah(rec.izinPay)}`
+              : "";
+          const terimaTampil =
+            rec && rec.status === "hadir" && upah
+              ? `${upah.bonus > 0 ? ` &middot; + izin ${rupiah(upah.bonus)}` : ""} &middot; Terima ${rupiah(upah.total)}`
+              : "";
+          const isHadir = !!(rec && rec.status === "hadir");
+          const isIzin = !!(rec && rec.status === "izin");
+          return `<div class="absensi-row">
+            <div class="absensi-row-main">
+              <div class="absensi-row-name">
+                <button type="button" class="absensi-name-btn" onclick="bukaDetailPeserta('${p.id}')">${escHtml(p.nama)}${
+                  p.aktif
+                    ? ""
+                    : ' <span class="absensi-badge">Nonaktif</span>'
+                }</button>
+              </div>
+              <div class="absensi-row-meta">${rupiah(tarifTampil)} / hari${uangIzinTampil}${terimaTampil}</div>
+            </div>
+            <div class="absensi-toggle">
+              <button type="button" class="absensi-btn hadir${
+                isHadir ? " active" : ""
+              }" aria-pressed="${isHadir}" onclick="tandaiAbsensi('${p.id}','hadir')">HADIR</button>
+              <button type="button" class="absensi-btn izin${
+                isIzin ? " active" : ""
+              }" aria-pressed="${isIzin}" onclick="tandaiAbsensi('${p.id}','izin')">IZIN</button>
+            </div>
+            <button type="button" class="absensi-edit" aria-label="Edit ${escHtml(p.nama)}" onclick="bukaPesertaModal('${p.id}')">&#9998;</button>
+          </div>`;
+        })
+        .join("");
+    }
+
+    ringkasan.innerHTML = `
+      <div class="absensi-summary-row"><span>Hadir (${harian.hadirCount})</span><strong>${rupiah(harian.totalHadir)}</strong></div>
+      <div class="absensi-summary-row"><span>Izin (${harian.izinCount})</span><strong>${rupiah(harian.totalIzin)}</strong></div>
+      ${
+        harian.pool > 0
+          ? `<div class="absensi-summary-row"><span>Uang izin dibagikan (sudah termasuk)</span><strong>${rupiah(harian.pool)}</strong></div>`
+          : ""
+      }
+      ${
+        harian.takTerbagi > 0
+          ? `<div class="absensi-summary-row warning"><span>Tidak terbagi (belum ada Hadir)</span><strong>${rupiah(harian.takTerbagi)}</strong></div>`
+          : ""
+      }
+      <div class="absensi-summary-row total"><span>Total upah hari ini</span><strong>${rupiah(harian.total)}</strong></div>`;
+
+    const rincianWrap = document.getElementById("rincianIzinWrap");
+    const rincian = document.getElementById("rincianIzin");
+    if (rincianWrap && rincian) {
+      if (!harian.izin.length) {
+        rincianWrap.hidden = true;
+        rincian.innerHTML = "";
+      } else {
+        rincianWrap.hidden = false;
+        rincian.innerHTML = `
+          <div class="rincian-group">
+            <div class="rincian-group-title">Dari Izin (${harian.izinCount})</div>
+            ${harian.izin
+              .map(
+                (r) => `<div class="rincian-row">
+                  <div class="rincian-label">${escHtml(r.nama)}<div class="rincian-meta">${rupiah(r.tarif)} / hari &middot; Uang izin ${rupiah(r.izinPay)}</div></div>
+                  <div class="rincian-amount">${rupiah(Math.max(0, r.tarif - r.izinPay))} dialihkan</div>
+                </div>`,
+              )
+              .join("")}
+          </div>
+          ${
+            harian.hadirCount
+              ? `<div class="rincian-group">
+                  <div class="rincian-group-title">Diterima Hadir (${harian.hadirCount})</div>
+                  ${harian.hadir
+                    .map(
+                      (r) => `<div class="rincian-row">
+                        <div class="rincian-label">${escHtml(r.nama)}<div class="rincian-meta">${rupiah(r.tarif)} / hari${
+                          r.bonus > 0 ? ` &middot; + izin ${rupiah(r.bonus)}` : ""
+                        }</div></div>
+                        <div class="rincian-amount">${rupiah(r.total)}</div>
+                      </div>`,
+                    )
+                    .join("")}
+                </div>`
+              : ""
+          }
+          ${
+            harian.takTerbagi > 0
+              ? `<div class="rincian-row rincian-unallocated">
+                  <div class="rincian-label">Tidak terbagi (belum ada Hadir)</div>
+                  <div class="rincian-amount">${rupiah(harian.takTerbagi)}</div>
+                </div>`
+              : ""
+          }`;
+      }
+    }
+  }
+
+  const rekap = hitungRekapPeriode();
+  const rekapEl = document.getElementById("rekapGaji");
+  if (rekapEl) {
+    if (!rekap.rows.length) {
+      rekapEl.innerHTML =
+        '<div class="absensi-empty">Belum ada peserta di periode ini.</div>';
+    } else {
+      const total = rekap.rows.reduce((s, r) => s + r.total, 0);
+      rekapEl.innerHTML = `
+        <div class="rekap-list">
+          ${rekap.rows
+            .map(
+              (r) => `<button type="button" class="rekap-row" onclick="bukaDetailPeserta('${r.id}')">
+                <span class="rekap-main">
+                  <span class="rekap-name">${escHtml(r.nama)}${
+                    r.aktif ? "" : ' <span class="absensi-badge">Nonaktif</span>'
+                  }</span>
+                  <span class="rekap-meta">${r.hadir} Hadir &middot; ${r.izin} Izin${
+                    r.uangIzin > 0 ? ` &middot; Uang izin ${rupiah(r.uangIzin)}` : ""
+                  }${
+                    r.bonus > 0 ? ` &middot; Bonus izin ${rupiah(r.bonus)}` : ""
+                  }</span>
+                </span>
+                <span class="rekap-total">${rupiah(r.total)}</span>
+              </button>`,
+            )
+            .join("")}
+        </div>
+        <div class="rekap-grand"><span>Total ${rekap.rows.length} peserta</span><strong>${rupiah(total)}</strong></div>
+        ${
+          rekap.takTerbagi > 0
+            ? `<div class="rekap-unallocated">Tidak terbagi (belum ada Hadir) <strong>${rupiah(rekap.takTerbagi)}</strong></div>`
+            : ""
+        }`;
+    }
+  }
+
+  const infoPeriode = document.getElementById("periodeInfo");
+  if (infoPeriode) {
+    const gajian = tanggalGajian(periode.selesai);
+    infoPeriode.innerHTML = `${rekap.tanggalKerja.length} hari kerja &middot; Gajian <strong>${formatTanggal(gajian)}</strong>`;
+  }
+
+  const nonaktif = absensiData.peserta
+    .filter((p) => !p.aktif)
+    .sort((a, b) => a.nama.localeCompare(b.nama, "id"));
+  const wrap = document.getElementById("pesertaNonaktifWrap");
+  if (wrap) wrap.hidden = nonaktif.length === 0;
+  setTxt("jumlahNonaktif", nonaktif.length);
+  const listNonaktif = document.getElementById("listPesertaNonaktif");
+  if (listNonaktif) {
+    listNonaktif.innerHTML = nonaktif
+      .map(
+        (p) => `<div class="peserta-nonaktif-row">
+          <div class="rekap-main">
+            <div class="rekap-name">${escHtml(p.nama)}</div>
+            <div class="rekap-meta">${rupiah(p.tarif)} / hari</div>
+          </div>
+          <button type="button" class="btn-sm" onclick="aktifkanPeserta('${p.id}')">Aktifkan</button>
+        </div>`,
+      )
+      .join("");
+  }
+  renderBadges();
+}
+
+/* =========================================
    BACKUP & RESTORE
    ========================================= */
 function buildBackup() {
@@ -905,6 +1858,7 @@ function buildBackup() {
     data,
     historyData,
     archiveData,
+    absensi: absensiData,
   };
 }
 
@@ -912,7 +1866,11 @@ function renderBackupNote() {
   const el = document.getElementById("backupNote");
   if (!el) return;
 
-  const adaData = data.length > 0 || historyData.length > 0;
+  const adaData =
+    data.length > 0 ||
+    historyData.length > 0 ||
+    absensiData.peserta.length > 0 ||
+    Object.keys(absensiData.catatan).length > 0;
   let iso = null;
   try {
     iso = JSON.parse(localStorage.getItem("ultra_v10_backup") || "null");
@@ -1048,6 +2006,7 @@ function parseBackup(text) {
           : null,
       items: a.items.map(normalize),
     })),
+    absensi: normalisasiAbsensi(parsed.absensi),
   };
 }
 
@@ -1074,7 +2033,7 @@ async function importData(input) {
   openModal(
     svgImpor,
     "Impor Data",
-    `Impor akan mengganti ${data.length} sekolah, ${historyData.length} riwayat, dan ${archiveData.length} arsip saat ini dengan ${parsed.data.length} sekolah, ${parsed.historyData.length} riwayat, dan ${parsed.archiveData.length} arsip dari file. Lanjutkan?`,
+    `Impor akan mengganti ${data.length} sekolah, ${historyData.length} riwayat, ${archiveData.length} arsip, dan ${absensiData.peserta.length} peserta absensi saat ini dengan ${parsed.data.length} sekolah, ${parsed.historyData.length} riwayat, ${parsed.archiveData.length} arsip, dan ${parsed.absensi.peserta.length} peserta absensi dari file. Lanjutkan?`,
     "var(--warning-text)",
     () => {
       deletedItem = {
@@ -1083,12 +2042,15 @@ async function importData(input) {
           data: JSON.parse(JSON.stringify(data)),
           historyData: JSON.parse(JSON.stringify(historyData)),
           archiveData: JSON.parse(JSON.stringify(archiveData)),
+          absensi: JSON.parse(JSON.stringify(absensiData)),
         },
       };
       data = parsed.data;
       historyData = parsed.historyData;
       archiveData = parsed.archiveData;
+      absensiData = parsed.absensi;
       update();
+      renderAbsensi();
       showSnackbar("Data berhasil diimpor", true);
     },
   );
@@ -1487,6 +2449,8 @@ function undoAction() {
       data = deletedItem.content.data;
       historyData = deletedItem.content.historyData;
       archiveData = deletedItem.content.archiveData;
+      if (deletedItem.content.absensi)
+        absensiData = deletedItem.content.absensi;
     } else if (deletedItem.type === "bulk_status") {
       deletedItem.indices.forEach((i) => {
         data[i].status = deletedItem.content;
@@ -1506,6 +2470,7 @@ function undoAction() {
     document.getElementById("snackbar").className = "snackbar";
     deletedItem = null;
     update();
+    renderAbsensi();
   }
 }
 
