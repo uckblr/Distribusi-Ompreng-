@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <meta name="theme-color" content="#08235A" />
-    <title>UCKBLR</title>
+    <title>BGN - Divisi Pemorsian SPPG Muara 002</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -18,7 +18,13 @@
   </head>
   <body>
     <header class="app-header">
-      <div class="header-title">UCKBLR</div>
+      <div class="header-brand">
+        <img
+          src="logo-bgn.png"
+          alt="Badan Gizi Nasional"
+          class="header-logo"
+        />
+      </div>
       <div class="header-profile">Divisi Pemorsian SPPG Muara 002</div>
     </header>
 
@@ -42,6 +48,7 @@
             <line x1="16" y1="10" x2="16" y2="16"></line>
           </svg>
         </span>
+        <span id="navDashBadge" class="nav-badge" hidden>0</span>
         <span class="text">Dasbor</span>
       </div>
 
@@ -66,6 +73,7 @@
             <path d="M12 2l-10 8h20z"></path>
           </svg>
         </span>
+        <span id="navSekolahBadge" class="nav-badge" hidden>0</span>
         <span class="text">Sekolah</span>
       </div>
 
@@ -86,12 +94,43 @@
             <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
         </span>
+        <span id="navRiwayatBadge" class="nav-badge" hidden>0</span>
         <span class="text">Riwayat</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('absensi', this)">
+        <span class="icon">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+            <path d="m9 15 2 2 4-4"></path>
+          </svg>
+        </span>
+        <span id="navAbsensiBadge" class="nav-badge" hidden>0</span>
+        <span class="text">Absensi</span>
       </div>
     </nav>
 
     <div class="container">
       <section id="dashboard" class="page active">
+        <div class="page-heading">
+          <h3>
+            Dasbor
+            <span id="dashBadge" class="count-badge" hidden>0</span>
+          </h3>
+        </div>
         <div class="card">
           <div class="stat-row">
             <div class="stat-item">
@@ -105,9 +144,7 @@
             </div>
           </div>
           <div class="stat-pill-wrap">
-            <span id="sekolahDoneCount" class="status-pill"
-              >0 sekolah selesai</span
-            >
+            <span id="dashRingkasan" class="status-pill"></span>
           </div>
           <div class="progress-container">
             <div id="progressBarDone" class="progress-done"></div>
@@ -191,9 +228,10 @@
                   />
                 </label>
               </div>
-              <div id="ringkasanSiap"></div>
             </div>
           </div>
+          <div id="ringkasanSiap" class="stock-summary"></div>
+          <div id="ringkasanMobil" class="stock-summary"></div>
           <div class="divider-h"></div>
           <div class="sisa-ready-wrap">
             <span id="labelSisaReady" class="label">Kurang</span>
@@ -214,6 +252,12 @@
       </section>
 
       <section id="data-sekolah" class="page">
+        <div class="page-heading">
+          <h3>
+            Data Sekolah
+            <span id="sekolahBadge" class="count-badge" hidden>0</span>
+          </h3>
+        </div>
         <div class="filter-bar">
           <div class="custom-dropdown">
             <input type="hidden" id="filterMobilSel" value="Semua" />
@@ -348,44 +392,192 @@
           />
         </div>
 
-        <div class="backup-bar">
-          <button class="btn-backup" onclick="exportData()">Ekspor Data</button>
-          <button
-            class="btn-backup"
-            onclick="document.getElementById('importFile').click()"
-          >
-            Impor Data
-          </button>
-          <input
-            type="file"
-            id="importFile"
-            accept=".json,application/json"
-            hidden
-            onchange="importData(this)"
-          />
-        </div>
-        <div id="backupNote" class="backup-note" hidden></div>
+        <div id="listCount" class="list-count" hidden></div>
 
         <div id="listActive"></div>
+
+        <div class="backup-section">
+          <div class="divider-h"></div>
+          <div class="label">Backup Data</div>
+          <div class="backup-bar">
+            <button class="btn-backup" onclick="exportData()">
+              Ekspor Data
+            </button>
+            <button
+              class="btn-backup"
+              onclick="document.getElementById('importFile').click()"
+            >
+              Impor Data
+            </button>
+            <input
+              type="file"
+              id="importFile"
+              accept=".json,application/json"
+              hidden
+              onchange="importData(this)"
+            />
+          </div>
+          <div id="backupNote" class="backup-note" hidden></div>
+        </div>
       </section>
 
       <section id="historis" class="page">
-        <div id="arsipSection" hidden>
-          <div class="page-heading">
-            <h3>Arsip Harian</h3>
+        <div class="page-heading">
+          <h3>
+            Riwayat
+            <span id="riwayatBadge" class="count-badge" hidden>0</span>
+          </h3>
+        </div>
+        <div class="riwayat-tabs" role="tablist">
+          <button
+            type="button"
+            id="tabArsip"
+            class="riwayat-tab active"
+            role="tab"
+            aria-selected="true"
+            onclick="showRiwayatTab('arsip')"
+          >
+            Arsip Harian
+            <span id="arsipBadge" class="count-badge" hidden>0</span>
+          </button>
+          <button
+            type="button"
+            id="tabHistory"
+            class="riwayat-tab"
+            role="tab"
+            aria-selected="false"
+            onclick="showRiwayatTab('history')"
+          >
+            Sekolah Terhapus
+            <span id="historyBadge" class="count-badge" hidden>0</span>
+          </button>
+        </div>
+        <div id="arsipSection" class="riwayat-panel" role="tabpanel">
+          <div class="riwayat-toolbar">
             <button class="btn-clear" onclick="confirmClearArchive()">
               Hapus Arsip
             </button>
           </div>
           <div id="listArsip"></div>
         </div>
-        <div class="page-heading">
-          <h3>Sekolah Terhapus</h3>
-          <button class="btn-clear" onclick="confirmClearHistory()">
-            Hapus Semua
-          </button>
+        <div
+          id="historySection"
+          class="riwayat-panel"
+          role="tabpanel"
+          hidden
+        >
+          <div class="riwayat-toolbar">
+            <button class="btn-clear" onclick="confirmClearHistory()">
+              Hapus Semua
+            </button>
+          </div>
+          <div id="listHistory"></div>
         </div>
-        <div id="listHistory"></div>
+      </section>
+
+      <section id="absensi" class="page">
+        <div class="absensi-grid">
+          <div class="card">
+            <div class="page-heading">
+              <h3>
+                Absensi Harian
+                <span id="absensiPesertaBadge" class="count-badge" hidden>0</span>
+              </h3>
+              <button class="btn-sm primary" onclick="bukaPesertaModal()">
+                + Peserta
+              </button>
+            </div>
+
+            <div class="absensi-date-row">
+              <label class="absensi-field">
+                <span class="form-label">Tanggal</span>
+                <input
+                  type="date"
+                  id="absensiTanggal"
+                  onchange="renderAbsensi()"
+                />
+              </label>
+              <label class="absensi-field">
+                <span class="form-label">Uang Izin / Hari</span>
+                <input
+                  type="number"
+                  min="0"
+                  id="uangIzinInput"
+                  placeholder="5000"
+                  onchange="simpanUangIzin()"
+                />
+              </label>
+            </div>
+            <div class="absensi-hint">
+              Izin menerima Uang Izin; sisa tarif izin dibagi rata ke Hadir
+              pada tanggal itu. Pengaturan baru hanya berlaku untuk penandaan
+              baru, catatan lama tidak berubah.
+            </div>
+            <div id="absensiInfo" class="absensi-info"></div>
+            <div id="listAbsensi" class="absensi-list"></div>
+            <div id="ringkasanAbsensi" class="absensi-summary"></div>
+
+            <details id="rincianIzinWrap" class="rincian-izin" hidden>
+              <summary>Rincian Pembagian Uang Izin</summary>
+              <div id="rincianIzin"></div>
+            </details>
+
+            <details id="pesertaNonaktifWrap" class="peserta-nonaktif" hidden>
+              <summary>
+                Peserta nonaktif (<span id="jumlahNonaktif">0</span>)
+              </summary>
+              <div id="listPesertaNonaktif"></div>
+            </details>
+          </div>
+
+          <div class="absensi-side">
+            <div class="card">
+              <div class="page-heading">
+                <h3>Periode Gaji</h3>
+              </div>
+
+              <div class="periode-grid">
+                <label class="absensi-field">
+                  <span class="form-label">Mulai</span>
+                  <input
+                    type="date"
+                    id="periodeMulai"
+                    onchange="ubahPeriode()"
+                  />
+                </label>
+                <label class="absensi-field">
+                  <span class="form-label">Selesai</span>
+                  <input
+                    type="date"
+                    id="periodeSelesai"
+                    onchange="ubahPeriode()"
+                  />
+                </label>
+              </div>
+
+              <div class="periode-actions">
+                <button class="btn-sm" onclick="periode10Hari()">
+                  10 Hari Kerja
+                </button>
+                <button class="btn-sm" onclick="geserPeriode(-14)">
+                  Sebelumnya
+                </button>
+                <button class="btn-sm" onclick="geserPeriode(14)">
+                  Berikutnya
+                </button>
+              </div>
+
+              <div id="periodeInfo" class="periode-info"></div>
+            </div>
+
+            <div class="card">
+              <div class="page-heading">
+                <h3>Rekap Gaji</h3>
+              </div>
+              <div id="rekapGaji"></div>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -517,12 +709,66 @@
       </div>
     </div>
 
+    <div id="pesertaModal" class="modal-overlay" onclick="closePesertaModal()">
+      <div class="modal-box form-modal" onclick="event.stopPropagation()">
+        <span class="close-icon" onclick="closePesertaModal()">&times;</span>
+
+        <h3 id="pesertaModalTitle" class="modal-title">Tambah Peserta</h3>
+
+        <input type="hidden" id="pesertaId" value="" />
+
+        <div class="form-label">Nama Peserta</div>
+        <input
+          type="text"
+          id="pesertaNama"
+          class="uppercase"
+          placeholder="NAMA PESERTA..."
+        />
+
+        <div class="form-label">Tarif Harian (Rp)</div>
+        <input
+          type="number"
+          min="0"
+          id="pesertaTarif"
+          placeholder="85000"
+        />
+
+        <div class="modal-buttons">
+          <button class="btn-modal-batal" onclick="closePesertaModal()">
+            BATAL
+          </button>
+          <button class="btn-modal-oke" onclick="simpanPeserta()">
+            SIMPAN
+          </button>
+        </div>
+
+        <button
+          type="button"
+          id="btnNonaktifPeserta"
+          class="btn-hapus-peserta"
+          onclick="nonaktifkanPeserta()"
+          hidden
+        >
+          NONAKTIFKAN PESERTA
+        </button>
+      </div>
+    </div>
+
     <div id="infoModal" class="modal-overlay" onclick="closeInfoModal()">
       <div class="modal-box info-modal" onclick="event.stopPropagation()">
         <span class="close-icon" onclick="closeInfoModal()">&times;</span>
 
         <h3 id="infoModalTitle" class="info-title"></h3>
         <div id="infoModalContent"></div>
+      </div>
+    </div>
+
+    <div id="pesertaDetailModal" class="modal-overlay" onclick="closePesertaDetail()">
+      <div class="modal-box info-modal" onclick="event.stopPropagation()">
+        <span class="close-icon" onclick="closePesertaDetail()">&times;</span>
+
+        <h3 id="pesertaDetailTitle" class="info-title"></h3>
+        <div id="pesertaDetailContent"></div>
       </div>
     </div>
 
